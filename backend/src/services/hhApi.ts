@@ -26,12 +26,63 @@ export interface HHVacancy {
 export interface HHResume {
   id: string;
   title: string;
+  first_name?: string;
+  last_name?: string;
+  middle_name?: string;
+  age?: number;
+  photo?: {
+    id: string;
+    small: string;
+    medium: string;
+  };
+  total_experience_months?: number;
   experience: Array<{
     company?: string;
+    company_id?: string;
     position?: string;
     description?: string;
+    start?: string;
+    end?: string;
+    area?: {
+      id: string;
+      name: string;
+    };
   }>;
   skills: Array<{ name: string }>;
+  education?: Array<{
+    level?: {
+      id: string;
+      name: string;
+    };
+    primary?: Array<{
+      name: string;
+      organization?: string;
+      result?: string;
+      year?: number;
+    }>;
+  }>;
+  language?: Array<{
+    id: string;
+    name: string;
+    level?: {
+      id: string;
+      name: string;
+    };
+  }>;
+  status?: {
+    id: string;
+    name: string;
+  };
+  access?: {
+    type?: {
+      id: string;
+      name: string;
+    };
+  };
+  created_at?: string;
+  updated_at?: string;
+  views_count?: number;
+  [key: string]: any;
 }
 
 export interface HHUser {
@@ -39,6 +90,14 @@ export interface HHUser {
   email: string;
   first_name?: string;
   last_name?: string;
+  middle_name?: string;
+  phone?: string;
+  is_applicant?: boolean;
+  is_employer?: boolean;
+  is_admin?: boolean;
+  is_in_search?: boolean;
+  // Дополнительные поля, которые могут быть в ответе
+  [key: string]: any;
 }
 
 export class HHApiService {
@@ -155,10 +214,45 @@ export class HHApiService {
 
   async getResumes(accessToken: string): Promise<HHResume[]> {
     try {
-      const response = await this.client.get('/resumes/mine', {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const allResumes: HHResume[] = [];
+      let page = 0;
+      let hasMore = true;
+      const perPage = 100; // Максимальное количество на странице
+
+      // Загружаем все страницы резюме
+      while (hasMore) {
+        const response = await this.client.get('/resumes/mine', {
+          params: {
+            per_page: perPage,
+            page: page,
+          },
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        const resumes = response.data.items || [];
+        allResumes.push(...resumes);
+
+        // Проверяем, есть ли еще страницы
+        const pages = response.data.pages || 0;
+        const found = response.data.found || 0;
+        
+        logger.info(`HH.ru API page ${page}: ${resumes.length} resumes (total found: ${found}, pages: ${pages})`);
+      
+      // Логируем ID всех резюме на этой странице
+      resumes.forEach((resume: any) => {
+        logger.info(`  - Resume ID: ${resume.id}, Title: ${resume.title || 'N/A'}, Status: ${resume.status?.name || 'N/A'}`);
       });
-      return response.data.items || [];
+
+        if (page >= pages - 1 || resumes.length === 0) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+
+      logger.info(`HH.ru API returned total ${allResumes.length} resumes`);
+      
+      return allResumes;
     } catch (error: any) {
       logger.error('Error getting resumes:', error.response?.data || error.message);
       throw new Error('Failed to get resumes');
@@ -214,17 +308,162 @@ export class HHApiService {
   }
 
   async createApplication(accessToken: string, vacancyId: string, resumeId: string, coverLetter: string): Promise<void> {
+    if (!vacancyId || !resumeId) {
+      throw new Error(`Missing required parameters: vacancyId=${vacancyId}, resumeId=${resumeId}`);
+    }
+
+    // Убеждаемся, что ID - строки (HH.ru API требует строки)
+    const vacancyIdStr = String(vacancyId).trim();
+    const resumeIdStr = String(resumeId).trim();
+
+    if (!vacancyIdStr || !resumeIdStr) {
+      throw new Error(`Empty parameters after conversion: vacancyId="${vacancyIdStr}", resumeId="${resumeIdStr}"`);
+    }
+
+    const requestBody = {
+      vacancy_id: vacancyIdStr,
+      resume_id: resumeIdStr,
+      message: coverLetter,
+    };
+
+    logger.info('Sending application to HH.ru', {
+      vacancyId: vacancyIdStr,
+      resumeId: resumeIdStr,
+      coverLetterLength: coverLetter.length,
+      endpoint: '/negotiations',
+      requestBodyKeys: Object.keys(requestBody),
+      requestBodyValues: {
+        vacancy_id: vacancyIdStr,
+        resume_id: resumeIdStr,
+        message_length: coverLetter.length,
+      },
+    });
+
     try {
-      await this.client.post(`/negotiations`, {
-        vacancy_id: vacancyId,
-        resume_id: resumeId,
-        message: coverLetter,
-      }, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      logger.info('Preparing request to HH.ru negotiations API', {
+        url: `${this.baseURL}/negotiations`,
+        method: 'POST',
+        vacancy_id_value: requestBody.vacancy_id,
+        resume_id_value: requestBody.resume_id,
+        message_length: requestBody.message.length,
+      });
+
+      // Пробуем сначала JSON формат
+      let response;
+      try {
+        logger.info('Trying JSON format');
+        response = await axios.post(
+          `${this.baseURL}/negotiations`,
+          requestBody,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+          }
+        );
+        logger.info('Success with JSON format');
+      } catch (jsonError: any) {
+        // Если JSON не работает, пробуем form-urlencoded (как для OAuth)
+        if (jsonError.response?.status === 400 && jsonError.response?.data?.bad_argument) {
+          logger.info('JSON format failed, trying form-urlencoded format');
+          const formParams = new URLSearchParams({
+            vacancy_id: vacancyIdStr,
+            resume_id: resumeIdStr,
+            message: coverLetter,
+          });
+          
+          response = await axios.post(
+            `${this.baseURL}/negotiations`,
+            formParams.toString(),
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+            }
+          );
+          logger.info('Success with form-urlencoded format');
+        } else {
+          throw jsonError;
+        }
+      }
+      
+      logger.info('Application successfully sent to HH.ru', {
+        status: response.status,
+        vacancyId: vacancyIdStr,
+        resumeId: resumeIdStr,
+        responseData: response.data,
       });
     } catch (error: any) {
-      logger.error('Error creating application:', error.response?.data || error.message);
-      throw new Error('Failed to create application');
+      logger.error('Error creating application in HH.ru:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        vacancyId: vacancyIdStr,
+        resumeId: resumeIdStr,
+        requestBody: requestBody,
+        requestBodyStringified: JSON.stringify(requestBody),
+      });
+      
+      // Пробрасываем ошибку дальше с деталями
+      const errorMessage = error.response?.data?.description || error.message || 'Failed to create application';
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Получить отклики пользователя (negotiations)
+   */
+  async getNegotiations(accessToken: string, params: {
+    per_page?: number;
+    page?: number;
+  } = {}): Promise<any> {
+    try {
+      const response = await this.client.get('/negotiations', {
+        params: {
+          per_page: params.per_page || 20,
+          page: params.page || 0,
+        },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error('Error getting negotiations:', error.response?.data || error.message);
+      throw new Error('Failed to get negotiations');
+    }
+  }
+
+  /**
+   * Получить сохраненные вакансии пользователя
+   */
+  async getSavedVacancies(accessToken: string): Promise<any[]> {
+    try {
+      const response = await this.client.get('/saved_vacancies', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return response.data.items || [];
+    } catch (error: any) {
+      logger.error('Error getting saved vacancies:', error.response?.data || error.message);
+      throw new Error('Failed to get saved vacancies');
+    }
+  }
+
+  /**
+   * Получить полную информацию о пользователе (расширенная версия)
+   * Эндпоинт /me возвращает больше данных, чем мы используем
+   */
+  async getFullUserInfo(accessToken: string): Promise<HHUser> {
+    try {
+      const response = await this.client.get('/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      return response.data;
+    } catch (error: any) {
+      logger.error('Error getting full user info:', error.response?.data || error.message);
+      throw new Error('Failed to get full user info');
     }
   }
 }

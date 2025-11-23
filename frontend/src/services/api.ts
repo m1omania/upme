@@ -134,5 +134,6 @@ export const userApi = {
   getProfile: () => api.get('/api/user/profile'),
   updateFilters: (filters: any) => api.put('/api/user/filters', filters),
   getResume: () => api.get('/api/user/resume'),
+  getHhInfo: () => api.get('/api/user/hh-info'),
 };
 

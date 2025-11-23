@@ -1,21 +1,10 @@
-import { HfInference } from '@huggingface/inference';
+import axios from 'axios';
 import logger from '../config/logger';
 import { cache } from '../utils/cache';
 
 export class AIService {
-  private hf: HfInference | null = null;
-  private model = 'mistralai/Mistral-7B-Instruct-v0.2'; // Можно использовать другую модель
-
-  private getClient(): HfInference {
-    if (!this.hf) {
-      const apiKey = process.env.HUGGINGFACE_API_KEY;
-      if (!apiKey) {
-        throw new Error('HUGGINGFACE_API_KEY is not set');
-      }
-      this.hf = new HfInference(apiKey);
-    }
-    return this.hf;
-  }
+  // Используем Qwen2.5-7B-Instruct через chat/completions API (как в проекте dr)
+  private model = 'Qwen/Qwen2.5-7B-Instruct'; // Модель для генерации текста
 
   /**
    * Генерирует сопроводительное письмо на основе вакансии и резюме
@@ -46,49 +35,113 @@ export class AIService {
         resumeSkills
       );
 
-      logger.info('Generating cover letter with HuggingFace API');
-
-      const hf = this.getClient();
-      const response = await hf.textGeneration({
+      logger.info('Generating cover letter with HuggingFace API', {
         model: this.model,
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 500,
-          temperature: 0.7,
-          top_p: 0.9,
-          return_full_text: false,
-        },
+        promptLength: prompt.length,
       });
 
-      let letter = response.generated_text.trim();
+      // Логируем промпт для отладки
+      logger.info('Prompt for AI:', { prompt: prompt.substring(0, 500) + '...' });
+        logger.info('Calling HuggingFace Router API (chat/completions) for model:', this.model);
+        
+        // Используем прямой HTTP запрос к router.huggingface.co/v1/chat/completions (как в проекте dr)
+        const apiKey = process.env.HUGGINGFACE_API_KEY;
+        if (!apiKey) {
+          throw new Error('HUGGINGFACE_API_KEY is not set');
+        }
 
-      // Очистка и форматирование
-      letter = this.cleanGeneratedText(letter);
-
-      // Если ответ слишком короткий, попробуем еще раз
-      if (letter.length < 100) {
-        logger.warn('Generated letter is too short, retrying...');
-        const retryResponse = await hf.textGeneration({
-          model: this.model,
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: 800,
+        const response = await axios.post(
+          'https://router.huggingface.co/v1/chat/completions',
+          {
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            model: this.model,
+            stream: false,
             temperature: 0.8,
             top_p: 0.95,
-            return_full_text: false,
+            max_tokens: 600,
           },
-        });
-        letter = this.cleanGeneratedText(retryResponse.generated_text.trim());
-      }
+          {
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+          }
+        );
 
-      const finalLetter = letter || this.getFallbackLetter(vacancyTitle, resumeTitle);
-      
-      // Кэшируем результат на 1 час
-      cache.set(cacheKey, finalLetter, 3600);
-      
-      return finalLetter;
+        logger.info('HuggingFace Router API response received', {
+          status: response.status,
+          hasChoices: !!response.data?.choices,
+        });
+
+        // Обрабатываем ответ от chat/completions API
+        let generatedText = '';
+        if (response.data?.choices?.[0]?.message?.content) {
+          generatedText = response.data.choices[0].message.content;
+        } else {
+          logger.warn('Unexpected response format:', JSON.stringify(response.data).substring(0, 500));
+          throw new Error('Unexpected response format from HuggingFace API');
+        }
+
+        logger.info('Extracted generated text', {
+          length: generatedText.length,
+          preview: generatedText.substring(0, 200),
+        });
+
+        let letter = generatedText.trim();
+
+        // Очистка и форматирование
+        letter = this.cleanGeneratedText(letter);
+
+        // Если ответ слишком короткий, попробуем еще раз
+        if (letter.length < 150) {
+          logger.warn('Generated letter is too short, retrying...');
+          const retryResponse = await axios.post(
+            'https://router.huggingface.co/v1/chat/completions',
+            {
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt,
+                },
+              ],
+              model: this.model,
+              stream: false,
+              temperature: 0.85,
+              top_p: 0.95,
+              max_tokens: 800,
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 60000,
+            }
+          );
+          const retryText = retryResponse.data?.choices?.[0]?.message?.content || '';
+          letter = this.cleanGeneratedText(retryText.trim());
+        }
+
+        const finalLetter = letter || this.getFallbackLetter(vacancyTitle, resumeTitle);
+        
+        // Кэшируем результат на 1 час
+        cache.set(cacheKey, finalLetter, 3600);
+        
+        return finalLetter;
     } catch (error: any) {
-      logger.error('Error generating cover letter:', error);
+      logger.error('Error generating cover letter:', {
+        error: error.message,
+        stack: error.stack,
+        response: error.response?.data,
+        status: error.response?.status,
+        model: this.model,
+      });
       // Возвращаем шаблонное письмо в случае ошибки
       return this.getFallbackLetter(vacancyTitle, resumeTitle);
     }
@@ -102,27 +155,44 @@ export class AIService {
     resumeExperience: string,
     resumeSkills: string[]
   ): string {
-    return `Напиши профессиональное сопроводительное письмо для отклика на вакансию.
+    // Используем полное описание вакансии (до 2000 символов для лучшего контекста)
+    const description = vacancyDescription ? vacancyDescription.substring(0, 2000) : 'Описание не указано';
+    const experience = resumeExperience ? resumeExperience.substring(0, 800) : 'Опыт не указан';
+    const skills = resumeSkills && resumeSkills.length > 0 ? resumeSkills.join(', ') : 'Навыки не указаны';
+    const requirements = vacancyRequirements && vacancyRequirements.length > 0 
+      ? vacancyRequirements.join(', ') 
+      : 'Требования не указаны';
 
-Вакансия: ${vacancyTitle}
+    return `Ты профессиональный HR-специалист. Напиши убедительное сопроводительное письмо для отклика на вакансию.
 
-Описание вакансии:
-${vacancyDescription.substring(0, 1000)}
+ВАЖНО: Отвечай ТОЛЬКО на русском языке. Не используй другие языки.
 
-Требования:
-${vacancyRequirements.join(', ')}
+ВАКАНСИЯ:
+Название: ${vacancyTitle}
 
-Мое резюме:
+Описание:
+${description}
+
+Требования к кандидату:
+${requirements}
+
+МОЕ РЕЗЮМЕ:
 Должность: ${resumeTitle}
-Опыт: ${resumeExperience.substring(0, 500)}
-Навыки: ${resumeSkills.join(', ')}
+Опыт работы: ${experience}
+Ключевые навыки: ${skills}
 
-Требования к письму:
-- Профессиональный тон
-- Укажи, почему ты подходишь для этой позиции
-- Упомяни релевантный опыт и навыки
-- Будь конкретным, но кратким (2-3 абзаца)
-- Начни с приветствия
+ТРЕБОВАНИЯ К ПИСЬМУ:
+1. Начни с профессионального приветствия
+2. Кратко представься (1-2 предложения)
+3. Объясни, почему ты подходишь для этой позиции:
+   - Упомяни релевантный опыт из резюме
+   - Подчеркни совпадение навыков с требованиями
+   - Покажи заинтересованность в позиции
+4. Заверши выражением готовности к обсуждению
+5. Будь конкретным, но кратким (2-3 абзаца, максимум 250 слов)
+6. Используй профессиональный, но дружелюбный тон
+7. Избегай общих фраз, будь конкретным
+8. НЕ задавай вопросов, НЕ проси дополнительной информации - просто напиши письмо
 
 Сопроводительное письмо:`;
   }
@@ -161,19 +231,47 @@ ${feedback ? `Дополнительные требования: ${feedback}` : 
 
 Улучшенное письмо:`;
 
-      const hf = this.getClient();
-      const response = await hf.textGeneration({
-        model: this.model,
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 600,
+      const apiKey = process.env.HUGGINGFACE_API_KEY;
+      if (!apiKey) {
+        throw new Error('HUGGINGFACE_API_KEY is not set');
+      }
+
+      const response = await axios.post(
+        'https://router.huggingface.co/v1/chat/completions',
+        {
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          model: this.model,
+          stream: false,
           temperature: 0.7,
           top_p: 0.9,
-          return_full_text: false,
+          max_tokens: 600,
         },
-      });
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000,
+        }
+      );
 
-      return this.cleanGeneratedText(response.generated_text.trim()) || originalLetter;
+      let generatedText = '';
+      if (response.data?.choices?.[0]?.message?.content) {
+        generatedText = response.data.choices[0].message.content;
+      } else if (response.data?.generated_text) {
+        generatedText = response.data.generated_text;
+      } else if (Array.isArray(response.data)) {
+        generatedText = response.data[0]?.generated_text || response.data[0] || '';
+      } else if (typeof response.data === 'string') {
+        generatedText = response.data;
+      }
+
+      return this.cleanGeneratedText(generatedText.trim()) || originalLetter;
     } catch (error: any) {
       logger.error('Error improving cover letter:', error);
       return originalLetter;

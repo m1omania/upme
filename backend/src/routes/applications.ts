@@ -33,17 +33,44 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response<ApiRespons
       });
     }
 
+    // Получаем резюме из БД - они уже отфильтрованы при загрузке (только опубликованные)
     const resumes = ResumeModel.findByUserId(userId);
     if (resumes.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No resume found',
+        error: 'У вас нет активных (опубликованных) резюме. Опубликуйте резюме на HH.ru и возвращайтесь.',
       });
     }
 
-    const resume = resumes[0];
+    // Выбираем резюме (лучше всего подходящее для вакансии, или первое опубликованное)
+    const resume = resumes.find(r => r.hh_resume_id) || resumes[0];
+
+    if (!resume.hh_resume_id) {
+      logger.error('Resume hh_resume_id is missing', { resumeId: resume.id, resumeTitle: resume.title });
+      return res.status(400).json({
+        success: false,
+        error: 'Resume hh_resume_id is missing. Please reload your resume from HH.ru.',
+      });
+    }
+
+    if (!vacancy.hh_vacancy_id) {
+      logger.error('Vacancy hh_vacancy_id is missing', { vacancyId: vacancy.id, vacancyTitle: vacancy.title });
+      return res.status(400).json({
+        success: false,
+        error: 'Vacancy hh_vacancy_id is missing.',
+      });
+    }
+
+    logger.info('Creating application via HH.ru', {
+      vacancyId: vacancy.id,
+      hhVacancyId: vacancy.hh_vacancy_id,
+      resumeId: resume.id,
+      hhResumeId: resume.hh_resume_id,
+      coverLetterLength: cover_letter.length,
+    });
 
     // Создаем отклик через HH.ru API
+    let hhApplicationSuccess = false;
     try {
       await hhApiService.createApplication(
         user.access_token,
@@ -51,9 +78,44 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response<ApiRespons
         resume.hh_resume_id,
         cover_letter
       );
+      hhApplicationSuccess = true;
+      logger.info('Application successfully created via HH.ru API');
     } catch (error: any) {
-      logger.error('Error creating application via HH.ru:', error);
-      // Продолжаем, даже если HH.ru API вернул ошибку (может быть дубликат)
+      logger.error('Error creating application via HH.ru:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        vacancyId: vacancy.hh_vacancy_id,
+        resumeId: resume.hh_resume_id,
+      });
+      
+      // Проверяем тип ошибки
+      const errorType = error.response?.data?.errors?.[0]?.type;
+      const errorDescription = error.response?.data?.description || error.message;
+      
+      // Если это дубликат, продолжаем (отклик уже был отправлен ранее)
+      if (error.response?.status === 400 && errorType === 'already_exists') {
+        logger.warn('Application already exists in HH.ru (duplicate), continuing...');
+        hhApplicationSuccess = true;
+      } 
+      // Если резюме не найдено или недоступно
+      else if (error.response?.status === 400 && (errorType === 'resume_not_found' || errorDescription?.includes('Resume not found'))) {
+        logger.error('Resume not found or not available in HH.ru', {
+          resumeId: resume.hh_resume_id,
+          errorDescription,
+        });
+        return res.status(400).json({
+          success: false,
+          error: 'Резюме не найдено или недоступно в HH.ru. Пожалуйста, обновите список резюме в профиле.',
+        });
+      }
+      // Для других ошибок возвращаем ошибку
+      else {
+        return res.status(500).json({
+          success: false,
+          error: `Не удалось отправить отклик в HH.ru: ${errorDescription}`,
+        });
+      }
     }
 
     // Сохраняем в БД

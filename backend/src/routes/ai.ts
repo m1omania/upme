@@ -12,6 +12,7 @@ const router = Router();
 // Генерация сопроводительного письма
 router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest, res: Response<ApiResponse<{ letter: string }>>) => {
   try {
+    logger.info('POST /api/ai/generate-letter - Request received', { body: req.body });
     const userId = req.userId!;
     const { vacancy_id } = req.body;
 
@@ -30,24 +31,41 @@ router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest
       });
     }
 
+    // Получаем резюме из БД - они уже отфильтрованы при загрузке (только опубликованные)
     const resumes = ResumeModel.findByUserId(userId);
+    
     if (resumes.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No resume found',
+        error: 'У вас нет активных (опубликованных) резюме. Опубликуйте резюме на HH.ru и возвращайтесь.',
       });
     }
 
-    const resume = resumes[0];
+    // Выбираем резюме, которое лучше всего соответствует вакансии
+    // Сравниваем название вакансии с названием резюме
+    const resume = selectBestResumeForVacancy(vacancy.title, resumes);
+    
+    logger.info(`Selected resume "${resume.title}" for vacancy "${vacancy.title}" (from ${resumes.length} available resumes)`);
 
-    // Генерируем письмо
+    // Получаем полные данные резюме из hh.ru (если есть)
+    // Для генерации используем максимально полную информацию
+    const resumeData = {
+      title: resume.title,
+      experience: resume.experience || '',
+      skills: resume.skills || [],
+      // Можно добавить дополнительные данные из hh_data если нужно
+    };
+
+    logger.info(`Generating cover letter for vacancy ${vacancy_id}, resume: ${resume.title}`);
+
+    // Генерируем письмо с полным описанием вакансии
     const letter = await aiService.generateCoverLetter(
       vacancy.title,
-      vacancy.description,
-      vacancy.requirements,
-      resume.title,
-      resume.experience,
-      resume.skills
+      vacancy.description || '',
+      vacancy.requirements || [],
+      resumeData.title,
+      resumeData.experience,
+      resumeData.skills
     );
 
     res.json({
@@ -89,6 +107,62 @@ router.post('/improve-letter', authenticate, aiLimiter, async (req: AuthRequest,
     });
   }
 });
+
+/**
+ * Выбирает резюме, которое лучше всего соответствует вакансии
+ * Сравнивает название вакансии с названием резюме
+ */
+function selectBestResumeForVacancy(vacancyTitle: string, resumes: any[]): any {
+  if (resumes.length === 1) {
+    return resumes[0];
+  }
+
+  const vacancyTitleLower = vacancyTitle.toLowerCase();
+  
+  // Ищем точное совпадение ключевых слов
+  const keywords = vacancyTitleLower.split(/\s+/).filter(w => w.length > 2);
+  
+  let bestMatch = resumes[0];
+  let bestScore = 0;
+
+  const scores: Array<{ resume: any; score: number }> = [];
+
+  for (const resume of resumes) {
+    const resumeTitleLower = resume.title.toLowerCase();
+    let score = 0;
+
+    // Проверяем точное совпадение ключевых слов
+    for (const keyword of keywords) {
+      if (resumeTitleLower.includes(keyword)) {
+        score += 10;
+      }
+    }
+
+    // Проверяем частичное совпадение (для случаев типа "UX/UI дизайнер" и "UX дизайнер")
+    const commonWords = ['дизайнер', 'designer', 'разработчик', 'developer', 'менеджер', 'manager', 'ux', 'ui', 'веб', 'web'];
+    for (const word of commonWords) {
+      if (vacancyTitleLower.includes(word) && resumeTitleLower.includes(word)) {
+        score += 5;
+      }
+    }
+
+    // Если название резюме содержит название вакансии или наоборот
+    if (resumeTitleLower.includes(vacancyTitleLower) || vacancyTitleLower.includes(resumeTitleLower)) {
+      score += 20;
+    }
+
+    scores.push({ resume, score });
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = resume;
+    }
+  }
+
+  logger.info(`Resume selection for "${vacancyTitle}": ${scores.map(s => `"${s.resume.title}" (${s.score})`).join(', ')} -> Selected: "${bestMatch.title}"`);
+
+  return bestMatch;
+}
 
 export default router;
 

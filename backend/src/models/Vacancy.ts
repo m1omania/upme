@@ -87,5 +87,56 @@ export class VacancyModel {
 
     insertMany(vacancies);
   }
+
+  static update(id: number, data: {
+    title?: string;
+    company?: string;
+    salary?: string | null;
+    description?: string;
+    requirements?: string[];
+  }): Vacancy | null {
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (data.title !== undefined) {
+      updates.push('title = ?');
+      values.push(data.title);
+    }
+    if (data.company !== undefined) {
+      updates.push('company = ?');
+      values.push(data.company);
+    }
+    if (data.salary !== undefined) {
+      updates.push('salary = ?');
+      values.push(data.salary || null);
+    }
+    if (data.description !== undefined) {
+      updates.push('description = ?');
+      values.push(data.description);
+    }
+    if (data.requirements !== undefined) {
+      updates.push('requirements = ?');
+      values.push(JSON.stringify(data.requirements));
+    }
+
+    if (updates.length === 0) {
+      return this.findById(id);
+    }
+
+    // Добавляем обновление времени кэширования
+    updates.push('cached_at = CURRENT_TIMESTAMP');
+    // ID должен быть последним параметром для WHERE
+    values.push(id);
+
+    const stmt = db.prepare(`
+      UPDATE vacancies 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `);
+
+    stmt.run(...values);
+
+    return this.findById(id);
+  }
 }
 

@@ -16,12 +16,14 @@ interface SwipeCardProps {
   reasons: string[];
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
+  onCardClick?: () => void;
 }
 
 export default function SwipeCard({
   vacancy,
   relevance,
   reasons,
+  onCardClick,
 }: SwipeCardProps) {
   return (
     <motion.div
@@ -31,7 +33,10 @@ export default function SwipeCard({
       transition={{ duration: 0.3 }}
       className="w-full max-w-md"
     >
-      <Card className="h-[600px] flex flex-col overflow-hidden">
+      <Card 
+        className="h-[600px] flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+        onClick={onCardClick}
+      >
         <CardContent className="flex-grow overflow-auto p-6">
           <div className="flex justify-between mb-4">
             <RelevanceBadge score={relevance} />

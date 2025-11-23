@@ -9,6 +9,33 @@ import type { ApiResponse } from '../../../shared/types';
 
 const router = Router();
 
+// Функция для проверки, опубликовано ли резюме
+function isResumePublished(status: { id?: string; name?: string } | undefined): boolean {
+  if (!status) return false;
+  
+  const statusName = (status.name || '').toLowerCase();
+  const statusId = (status.id || '').toLowerCase();
+  
+  // Проверяем, что резюме НЕ неопубликовано
+  const isNotPublished = 
+    statusName === 'не опубликовано' ||
+    statusName === 'not_published' ||
+    statusName === 'draft' ||
+    statusName === 'черновик' ||
+    statusId === 'not_published' ||
+    statusId === 'draft';
+  
+  // Проверяем, что резюме опубликовано
+  const isPublished = !isNotPublished && (
+    statusName === 'опубликовано' ||
+    statusName === 'published' ||
+    statusId === 'published' ||
+    statusId === 'publish'
+  );
+  
+  return isPublished;
+}
+
 // Инициация OAuth
 // В режиме разработки отключаем rate limiting
 const authMiddleware = process.env.NODE_ENV === 'development' ? [] : [authLimiter];
@@ -55,21 +82,47 @@ router.get('/callback', ...authMiddleware, async (req: Request, res: Response) =
       });
     }
 
-    // Получаем резюме пользователя
+    // Получаем резюме пользователя - только опубликованные
     try {
-      const resumes = await hhApiService.getResumes(access_token);
-      if (resumes.length > 0) {
-        const resume = resumes[0];
-        const resumeData = await hhApiService.getResume(access_token, resume.id);
+      const allResumes = await hhApiService.getResumes(access_token);
+      
+      // Фильтруем только опубликованные резюме
+      const publishedResumes = [];
+      for (const resume of allResumes) {
+        try {
+          const resumeData = await hhApiService.getResume(access_token, resume.id);
+          if (isResumePublished(resumeData.status)) {
+            publishedResumes.push(resumeData);
+          } else {
+            logger.info(`Skipping unpublished resume ${resume.id} during auth (status: ${resumeData.status?.name || 'N/A'})`);
+          }
+        } catch (err: any) {
+          logger.warn(`Failed to check resume status ${resume.id} during auth:`, err.message);
+        }
+      }
+      
+      if (publishedResumes.length > 0) {
+        const resumeData = publishedResumes[0];
         
+        // Обрабатываем skills - может быть массивом объектов или массивом строк
+        let skillsArray: string[] = [];
+        if (Array.isArray(resumeData.skills)) {
+          skillsArray = resumeData.skills.map((s: any) => {
+            if (typeof s === 'string') {
+              return s;
+            }
+            return s.name || s;
+          });
+        }
+
         ResumeModel.upsert({
           user_id: user.id,
           hh_resume_id: resumeData.id,
           title: resumeData.title,
-          experience: resumeData.experience?.map(exp => 
+          experience: resumeData.experience?.map((exp: any) => 
             `${exp.position} в ${exp.company || 'компании'}`
           ).join(', ') || '',
-          skills: resumeData.skills?.map(s => s.name) || [],
+          skills: skillsArray,
         });
       }
     } catch (error) {
