@@ -58,8 +58,51 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response<ApiR
             return null;
           }
           
+          // Обрабатываем навыки из HH.ru API
+          let hhSkills: string[] = [];
+          
+          // Проверяем skill_set в первую очередь (основное поле для навыков в HH.ru API)
+          if (Array.isArray(hhResume.skill_set)) {
+            hhSkills = hhResume.skill_set.map((s: any) => {
+              if (typeof s === 'string') {
+                return s;
+              }
+              return s.name || s;
+            });
+            logger.info(`Profile: Resume ${dbResume.hh_resume_id} found ${hhSkills.length} skills in skill_set: ${JSON.stringify(hhSkills)}`);
+          }
+          
+          // Проверяем key_skills (альтернативное поле)
+          if (hhSkills.length === 0 && Array.isArray(hhResume.key_skills)) {
+            hhSkills = hhResume.key_skills.map((s: any) => {
+              if (typeof s === 'string') {
+                return s;
+              }
+              return s.name || s;
+            });
+            logger.info(`Profile: Resume ${dbResume.hh_resume_id} found ${hhSkills.length} skills in key_skills: ${JSON.stringify(hhSkills)}`);
+          }
+          
+          // Проверяем skills только если это массив (не строка)
+          if (hhSkills.length === 0 && Array.isArray(hhResume.skills)) {
+            hhSkills = hhResume.skills.map((s: any) => {
+              if (typeof s === 'string') {
+                return s;
+              }
+              return s.name || s;
+            });
+            logger.info(`Profile: Resume ${dbResume.hh_resume_id} found ${hhSkills.length} skills in skills array: ${JSON.stringify(hhSkills)}`);
+          }
+          
+          // Используем навыки из БД, если они есть, иначе из HH.ru
+          const finalSkills = dbResume.skills && dbResume.skills.length > 0 ? dbResume.skills : hhSkills;
+          
+          logger.info(`Profile: Resume ${dbResume.hh_resume_id} skills - DB: ${JSON.stringify(dbResume.skills)}, HH.ru skill_set: ${JSON.stringify(hhResume.skill_set)}, HH.ru key_skills: ${JSON.stringify(hhResume.key_skills)}, Final: ${JSON.stringify(finalSkills)}`);
+          
           return {
             ...dbResume,
+            // Обновляем навыки в объекте резюме, если они есть в HH.ru
+            skills: finalSkills,
             hh_data: {
               status: hhResume.status,
               access: hhResume.access,
@@ -75,6 +118,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response<ApiR
               views_count: hhResume.views_count,
               created_at: hhResume.created_at,
               updated_at: hhResume.updated_at,
+              skills: hhSkills,
             },
           };
         } catch (err: any) {
@@ -166,17 +210,83 @@ router.get('/resume', authenticate, async (req: AuthRequest, res: Response<ApiRe
           
           logger.info(`Resume ${hhResume.id} loaded successfully. Status: ${fullResume.status?.name || 'N/A'}, Title: ${fullResume.title}`);
           
+          // Логируем все поля резюме для отладки
+          const resumeKeys = Object.keys(fullResume);
+          logger.info(`Resume ${hhResume.id} available fields: ${resumeKeys.join(', ')}`);
+          
+          // Логируем значения всех полей, связанных с навыками
+          logger.info(`Resume ${hhResume.id} skills field: type=${typeof fullResume.skills}, value=${typeof fullResume.skills === 'string' ? fullResume.skills.substring(0, 100) : JSON.stringify(fullResume.skills)}`);
+          logger.info(`Resume ${hhResume.id} key_skills field: ${JSON.stringify(fullResume.key_skills)}`);
+          logger.info(`Resume ${hhResume.id} skill_set field: ${JSON.stringify(fullResume.skill_set)}`);
+          logger.info(`Resume ${hhResume.id} key_skills_raw field: ${JSON.stringify((fullResume as any).key_skills_raw)}`);
+          
           // Сохраняем в БД
-          // Обрабатываем skills - может быть массивом объектов или массивом строк
+          // Обрабатываем навыки - проверяем все возможные поля
           let skillsArray: string[] = [];
-          if (Array.isArray(fullResume.skills)) {
+          
+          // Проверяем поле skill_set (основное поле для навыков в HH.ru API)
+          if (Array.isArray(fullResume.skill_set)) {
+            skillsArray = fullResume.skill_set.map((s: any) => {
+              if (typeof s === 'string') {
+                return s;
+              }
+              return s.name || s;
+            });
+            logger.info(`Resume ${hhResume.id} found ${skillsArray.length} skills in skill_set: ${JSON.stringify(skillsArray)}`);
+          }
+          
+          // Проверяем поле key_skills (альтернативное поле)
+          if (skillsArray.length === 0 && Array.isArray(fullResume.key_skills)) {
+            skillsArray = fullResume.key_skills.map((s: any) => {
+              if (typeof s === 'string') {
+                return s;
+              }
+              return s.name || s;
+            });
+            logger.info(`Resume ${hhResume.id} found ${skillsArray.length} skills in key_skills: ${JSON.stringify(skillsArray)}`);
+          }
+          
+          // Проверяем поле skills - если это массив (не строка)
+          if (skillsArray.length === 0 && Array.isArray(fullResume.skills)) {
             skillsArray = fullResume.skills.map((s: any) => {
               if (typeof s === 'string') {
                 return s;
               }
               return s.name || s;
             });
+            logger.info(`Resume ${hhResume.id} found ${skillsArray.length} skills in skills array: ${JSON.stringify(skillsArray)}`);
           }
+          
+          // Проверяем key_skills_raw
+          if (skillsArray.length === 0 && Array.isArray((fullResume as any).key_skills_raw)) {
+            skillsArray = (fullResume as any).key_skills_raw.map((s: any) => {
+              if (typeof s === 'string') {
+                return s;
+              }
+              return s.name || s;
+            });
+            logger.info(`Resume ${hhResume.id} found ${skillsArray.length} skills in key_skills_raw: ${JSON.stringify(skillsArray)}`);
+          }
+          
+          // Если навыки не найдены, логируем полную структуру для отладки
+          if (skillsArray.length === 0) {
+            logger.warn(`Resume ${hhResume.id} - no skills found. Full resume structure (first level): ${JSON.stringify(Object.keys(fullResume).reduce((acc, key) => {
+              const value = (fullResume as any)[key];
+              if (Array.isArray(value)) {
+                acc[key] = `Array[${value.length}]`;
+              } else if (typeof value === 'object' && value !== null) {
+                acc[key] = `Object(${Object.keys(value).length} keys)`;
+              } else if (typeof value === 'string') {
+                acc[key] = `String(${value.length} chars)`;
+              } else {
+                acc[key] = typeof value;
+              }
+              return acc;
+            }, {} as any))}`);
+          }
+          
+          // Логируем финальный результат
+          logger.info(`Resume ${hhResume.id} final skills array: ${JSON.stringify(skillsArray)}`);
 
           const savedResume = ResumeModel.upsert({
             user_id: userId,
@@ -208,6 +318,7 @@ router.get('/resume', authenticate, async (req: AuthRequest, res: Response<ApiRe
               views_count: fullResume.views_count,
               created_at: fullResume.created_at,
               updated_at: fullResume.updated_at,
+              skills: fullResume.skills || fullResume.key_skills || [],
             },
           };
         } catch (err: any) {

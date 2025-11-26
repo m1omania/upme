@@ -6,7 +6,7 @@ import { Container } from '@/components/ui/container';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Send, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Sparkles } from 'lucide-react';
 
 export default function CoverLetterPage() {
   const { vacancyId } = useParams<{ vacancyId: string }>();
@@ -202,44 +202,24 @@ export default function CoverLetterPage() {
                 />
 
                 <div className="flex flex-col gap-3">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={generateLetter}
-                      disabled={isGenerating}
-                      className="flex-1"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Генерация...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Перегенерировать
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleImprove}
-                      disabled={!letter.trim() || isImproving || improveLetter.isPending}
-                      className="flex-1"
-                    >
-                      {isImproving || improveLetter.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Улучшение...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Улучшить письмо
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleImprove}
+                    disabled={!letter.trim() || isImproving || improveLetter.isPending}
+                    className="w-full"
+                  >
+                    {isImproving || improveLetter.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Улучшение...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Улучшить письмо
+                      </>
+                    )}
+                  </Button>
                   <Button
                     onClick={handleSubmit}
                     disabled={!letter.trim() || createApplication.isPending}

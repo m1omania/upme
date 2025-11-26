@@ -4,6 +4,8 @@ import { aiLimiter } from '../middleware/rateLimit';
 import { aiService } from '../services/aiService';
 import { VacancyModel } from '../models/Vacancy';
 import { ResumeModel } from '../models/Resume';
+import { UserModel } from '../models/User';
+import { hhApiService } from '../services/hhApi';
 import logger from '../config/logger';
 import type { ApiResponse } from '../../../shared/types';
 
@@ -31,6 +33,8 @@ router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest
       });
     }
 
+    const user = UserModel.findById(userId)!;
+
     // Получаем резюме из БД - они уже отфильтрованы при загрузке (только опубликованные)
     const resumes = ResumeModel.findByUserId(userId);
     
@@ -47,26 +51,50 @@ router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest
     
     logger.info(`Selected resume "${resume.title}" for vacancy "${vacancy.title}" (from ${resumes.length} available resumes)`);
 
-    // Получаем полные данные резюме из hh.ru (если есть)
-    // Для генерации используем максимально полную информацию
+    // Получаем полные данные резюме из hh.ru для получения имени
+    const hhResume = await hhApiService.getResume(user.access_token, resume.hh_resume_id);
+    
+    // Формируем имя из резюме
+    const firstName = hhResume.first_name || '';
+    const lastName = hhResume.last_name || '';
+    const middleName = hhResume.middle_name || '';
+    const fullName = [lastName, firstName, middleName].filter(Boolean).join(' ') || 'Кандидат';
+
+    // Получаем контактные данные пользователя из HH.ru
+    const hhUserInfo = await hhApiService.getFullUserInfo(user.access_token);
+    const userEmail = hhUserInfo.email || user.email || '';
+    const userPhone = hhUserInfo.phone || '';
+
+    // Формируем контактные данные
+    const contactInfo: string[] = [];
+    if (userEmail) contactInfo.push(`Email: ${userEmail}`);
+    if (userPhone) contactInfo.push(`Телефон: ${userPhone}`);
+
+    // Получаем полные данные резюме для генерации
     const resumeData = {
       title: resume.title,
       experience: resume.experience || '',
       skills: resume.skills || [],
-      // Можно добавить дополнительные данные из hh_data если нужно
+      fullName: fullName,
     };
 
-    logger.info(`Generating cover letter for vacancy ${vacancy_id}, resume: ${resume.title}`);
+    logger.info(`Generating cover letter for vacancy ${vacancy_id}, resume: ${resume.title}, name: ${fullName}`);
 
     // Генерируем письмо с полным описанием вакансии
-    const letter = await aiService.generateCoverLetter(
+    let letter = await aiService.generateCoverLetter(
       vacancy.title,
       vacancy.description || '',
       vacancy.requirements || [],
       resumeData.title,
       resumeData.experience,
-      resumeData.skills
+      resumeData.skills,
+      resumeData.fullName
     );
+
+    // Добавляем контактные данные в конец письма
+    if (contactInfo.length > 0) {
+      letter += '\n\n' + contactInfo.join('\n');
+    }
 
     res.json({
       success: true,

@@ -54,7 +54,7 @@ export default function DashboardPage() {
   return (
     <Container maxWidth="lg">
       <div className="py-8">
-        <h1 className="text-4xl font-bold mb-8">Дашборд</h1>
+        <h1 className="text-4xl font-bold mb-8">Прогресс</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* XP и уровень */}
@@ -81,6 +81,7 @@ export default function DashboardPage() {
               <StreakCounter
                 currentStreak={(gamificationStats as any).currentStreak || 0}
                 longestStreak={(gamificationStats as any).longestStreak || 0}
+                dailyActivity={(gamificationStats as any).dailyActivity}
               />
             </CardContent>
           </Card>

@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { hhApiService } from '../services/hhApi';
 import { VacancyModel } from '../models/Vacancy';
 import { ResumeModel } from '../models/Resume';
+import { ApplicationModel } from '../models/Application';
 import { RelevanceService } from '../services/relevanceService';
 import { FilterModel } from '../models/Filter';
 import { UserModel } from '../models/User';
@@ -91,13 +92,21 @@ router.get('/relevant', authenticate, async (req: AuthRequest, res: Response<Api
       searchParams.salary = filters.salary_min;
     }
 
+    // Получаем список вакансий, на которые пользователь уже откликался
+    const appliedHhVacancyIds = new Set(ApplicationModel.getAppliedHhVacancyIds(userId));
+    logger.info(`User ${userId} has ${appliedHhVacancyIds.size} applied vacancies`);
+
     // Поиск вакансий через HH.ru API
     const hhResult = await hhApiService.searchVacancies(user.access_token, searchParams);
+
+    // Фильтруем вакансии, исключая те, на которые уже есть отклики
+    const filteredItems = hhResult.items.filter(v => !appliedHhVacancyIds.has(v.id));
+    logger.info(`Filtered ${hhResult.items.length} vacancies to ${filteredItems.length} (removed ${hhResult.items.length - filteredItems.length} already applied)`);
 
     // Кэшируем вакансии в БД
     // ВАЖНО: При поиске через /vacancies API hh.ru может не возвращать полное описание
     // Используем snippet как fallback, но полное описание загрузится при открытии деталей
-    const vacanciesToCache = hhResult.items.map(v => ({
+    const vacanciesToCache = filteredItems.map(v => ({
       hh_vacancy_id: v.id,
       title: v.name,
       company: v.employer.name,
@@ -114,7 +123,7 @@ router.get('/relevant', authenticate, async (req: AuthRequest, res: Response<Api
     VacancyModel.bulkCreate(vacanciesToCache);
 
     // Рассчитываем релевантность для каждой вакансии
-    const relevantVacancies = hhResult.items.map(v => {
+    const relevantVacancies = filteredItems.map(v => {
       const cachedVacancy = VacancyModel.findByHhVacancyId(v.id);
       if (!cachedVacancy) {
         logger.warn(`Vacancy ${v.id} not found in cache after bulkCreate`);

@@ -15,7 +15,8 @@ export class AIService {
     vacancyRequirements: string[],
     resumeTitle: string,
     resumeExperience: string,
-    resumeSkills: string[]
+    resumeSkills: string[],
+    fullName: string = 'Кандидат'
   ): Promise<string> {
     try {
       // Проверяем кэш
@@ -32,7 +33,8 @@ export class AIService {
         vacancyRequirements,
         resumeTitle,
         resumeExperience,
-        resumeSkills
+        resumeSkills,
+        fullName
       );
 
       logger.info('Generating cover letter with HuggingFace API', {
@@ -128,7 +130,7 @@ export class AIService {
           letter = this.cleanGeneratedText(retryText.trim());
         }
 
-        const finalLetter = letter || this.getFallbackLetter(vacancyTitle, resumeTitle);
+        const finalLetter = letter || this.getFallbackLetter(vacancyTitle, resumeTitle, fullName);
         
         // Кэшируем результат на 1 час
         cache.set(cacheKey, finalLetter, 3600);
@@ -143,7 +145,7 @@ export class AIService {
         model: this.model,
       });
       // Возвращаем шаблонное письмо в случае ошибки
-      return this.getFallbackLetter(vacancyTitle, resumeTitle);
+      return this.getFallbackLetter(vacancyTitle, resumeTitle, fullName);
     }
   }
 
@@ -153,7 +155,8 @@ export class AIService {
     vacancyRequirements: string[],
     resumeTitle: string,
     resumeExperience: string,
-    resumeSkills: string[]
+    resumeSkills: string[],
+    fullName: string
   ): string {
     // Используем полное описание вакансии (до 2000 символов для лучшего контекста)
     const description = vacancyDescription ? vacancyDescription.substring(0, 2000) : 'Описание не указано';
@@ -182,8 +185,8 @@ ${requirements}
 Ключевые навыки: ${skills}
 
 ТРЕБОВАНИЯ К ПИСЬМУ:
-1. Начни с профессионального приветствия
-2. Кратко представься (1-2 предложения)
+1. Начни с простого приветствия "Здравствуйте!" (НЕ используй "Уважаемый HR-специалист" или подобные обращения)
+2. Представься фразой "Меня зовут ${fullName}" (НЕ используй "Мое имя" или другие варианты)
 3. Объясни, почему ты подходишь для этой позиции:
    - Упомяни релевантный опыт из резюме
    - Подчеркни совпадение навыков с требованиями
@@ -193,6 +196,13 @@ ${requirements}
 6. Используй профессиональный, но дружелюбный тон
 7. Избегай общих фраз, будь конкретным
 8. НЕ задавай вопросов, НЕ проси дополнительной информации - просто напиши письмо
+9. НЕ используй плейсхолдеры типа [Ваше имя] - используй реальное имя: ${fullName}
+10. В конце письма НЕ добавляй контактные данные - они будут добавлены автоматически
+
+ВАЖНО: 
+- Начинай с "Здравствуйте!" (не "Уважаемый HR-специалист")
+- Используй фразу "Меня зовут ${fullName}" (не "Мое имя" или другие варианты)
+- Используй имя "${fullName}" вместо любых плейсхолдеров
 
 Сопроводительное письмо:`;
   }
@@ -207,14 +217,15 @@ ${requirements}
       .trim();
   }
 
-  private getFallbackLetter(vacancyTitle: string, resumeTitle: string): string {
+  private getFallbackLetter(vacancyTitle: string, resumeTitle: string, fullName: string = 'Кандидат'): string {
     return `Здравствуйте!
 
-Меня заинтересовала вакансия "${vacancyTitle}". Я ${resumeTitle} и считаю, что мой опыт и навыки соответствуют требованиям этой позиции.
+Меня зовут ${fullName}, и меня заинтересовала вакансия "${vacancyTitle}". Я ${resumeTitle} и считаю, что мой опыт и навыки соответствуют требованиям этой позиции.
 
 Буду рад обсудить детали и рассказать, как я могу внести вклад в работу вашей команды.
 
-С уважением`;
+С уважением,
+${fullName}`;
   }
 
   /**

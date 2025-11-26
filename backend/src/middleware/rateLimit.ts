@@ -20,7 +20,7 @@ export const authLimiter = rateLimit({
       return true;
     }
     // Пропускаем localhost в любом режиме
-    return req.ip === '::1' || req.ip === '127.0.0.1' || req.ip?.startsWith('::ffff:127.0.0.1');
+    return !!(req.ip === '::1' || req.ip === '127.0.0.1' || req.ip?.startsWith('::ffff:127.0.0.1'));
   },
 });
 

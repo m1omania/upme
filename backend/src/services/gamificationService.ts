@@ -5,6 +5,7 @@ import { ApplicationModel } from '../models/Application';
 import { XP_VALUES, XP_PER_LEVEL } from '../../../shared/types';
 import type { AchievementType, ActionType } from '../../../shared/types';
 import logger from '../config/logger';
+import db from '../config/database';
 
 export class GamificationService {
   /**
@@ -53,33 +54,6 @@ export class GamificationService {
     await this.checkAchievements(userId);
   }
 
-  /**
-   * Начисляет XP за просмотр резюме
-   */
-  static async awardViewXP(userId: number): Promise<void> {
-    await this.awardXP(userId, 'view', XP_VALUES.VIEW);
-    UserStatsModel.incrementViews(userId);
-  }
-
-  /**
-   * Начисляет XP за отказ
-   */
-  static async awardRejectionXP(userId: number): Promise<void> {
-    await this.awardXP(userId, 'view', XP_VALUES.REJECTION);
-  }
-
-  /**
-   * Начисляет XP за интервью
-   */
-  static async awardInterviewXP(userId: number): Promise<void> {
-    await this.awardXP(userId, 'view', XP_VALUES.INTERVIEW);
-    UserStatsModel.incrementInterviews(userId);
-    
-    // Проверяем достижение "Первое интервью"
-    if (!AchievementModel.hasAchievement(userId, 'first_interview')) {
-      AchievementModel.create(userId, 'first_interview');
-    }
-  }
 
   /**
    * Обновляет стрик пользователя
@@ -92,17 +66,20 @@ export class GamificationService {
     const stats = UserStatsModel.getOrCreate(userId);
     let newStreak = stats.current_streak;
 
-    if (lastActionDate === today) {
+    if (!lastActionDate) {
+      // Первая активность
+      newStreak = 1;
+    } else if (lastActionDate === today) {
       // Уже была активность сегодня, стрик не меняется
-      return stats.current_streak;
+      // Но если стрик был 0, устанавливаем его в 1
+      if (newStreak === 0) {
+        newStreak = 1;
+      }
     } else if (lastActionDate === yesterday) {
       // Была активность вчера, увеличиваем стрик
       newStreak = stats.current_streak + 1;
-    } else if (lastActionDate && lastActionDate < yesterday) {
-      // Пропустили день, сбрасываем стрик
-      newStreak = 1;
-    } else {
-      // Первая активность
+    } else if (lastActionDate < yesterday) {
+      // Пропустили день, сбрасываем стрик и начинаем с 1
       newStreak = 1;
     }
 
@@ -149,12 +126,60 @@ export class GamificationService {
   }
 
   /**
+   * Рассчитывает текущий стрик на основе последовательных дней с активностью
+   */
+  static calculateCurrentStreak(userId: number): number {
+    // Получаем все даты с активностью за последний год
+    const stmt = db.prepare(`
+      SELECT DISTINCT DATE(created_at) as date
+      FROM user_actions
+      WHERE user_id = ? 
+        AND action_type = 'swipe_right'
+        AND DATE(created_at) >= DATE('now', '-365 days')
+      ORDER BY date DESC
+    `);
+    const results = stmt.all(userId) as { date: string }[];
+    
+    // Создаем Set для быстрой проверки
+    const activeDates = new Set(results.map(r => r.date));
+    
+    const today = new Date();
+    let streak = 0;
+    
+    // Проверяем последовательные дни с активностью, начиная с сегодня
+    for (let i = 0; i < 365; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      if (activeDates.has(dateStr)) {
+        streak++;
+      } else {
+        // Если день без активности, прерываем стрик
+        break;
+      }
+    }
+    
+    return streak;
+  }
+
+  /**
    * Получает статистику геймификации для пользователя
    */
   static getStats(userId: number) {
     const stats = UserStatsModel.getOrCreate(userId);
     const achievements = AchievementModel.findByUserId(userId);
     const applications = ApplicationModel.getStatsByUserId(userId);
+    const dailyActivity = UserActionModel.getDailyActivityLast7Days(userId);
+
+    // Пересчитываем стрик на основе последовательных дней с активностью
+    const calculatedStreak = this.calculateCurrentStreak(userId);
+    const currentStreak = calculatedStreak > 0 ? calculatedStreak : stats.current_streak;
+    
+    // Обновляем стрик в БД, если он изменился
+    if (calculatedStreak !== stats.current_streak) {
+      UserStatsModel.updateStreak(userId, calculatedStreak);
+    }
 
     const xpForNextLevel = stats.level * XP_PER_LEVEL;
     const xpProgress = stats.total_xp % XP_PER_LEVEL;
@@ -166,13 +191,14 @@ export class GamificationService {
       xpProgress,
       xpForNextLevel,
       xpProgressPercent,
-      currentStreak: stats.current_streak,
+      currentStreak: calculatedStreak,
       longestStreak: stats.longest_streak,
       totalApplications: stats.total_applications,
       totalViews: stats.total_views,
       totalInterviews: stats.total_interviews,
       achievements,
       applicationStats: applications,
+      dailyActivity,
     };
   }
 

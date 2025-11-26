@@ -10,7 +10,7 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-export const db = new Database(dbPath);
+export const db: Database.Database = new Database(dbPath);
 
 // Включаем foreign keys
 db.pragma('foreign_keys = ON');

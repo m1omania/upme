@@ -6,6 +6,10 @@ import SwipePage from './pages/SwipePage';
 import CoverLetterPage from './pages/CoverLetterPage';
 import DashboardPage from './pages/DashboardPage';
 import ProfilePage from './pages/ProfilePage';
+import BlogPage from './pages/BlogPage';
+import BlogPostPage from './pages/BlogPostPage';
+import BlogAdminPage from './pages/BlogAdminPage';
+import PricingPage from './pages/PricingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AuthErrorPage from './pages/AuthErrorPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -31,46 +35,55 @@ function App() {
   return (
     <BrowserRouter>
       {isAuthenticated && <Navigation />}
-      <Routes>
-        <Route
-          path="/"
-          element={isAuthenticated ? <Navigate to="/swipe" replace /> : <LandingPage />}
-        />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/auth/error" element={<AuthErrorPage />} />
-        <Route
-          path="/swipe"
-          element={
-            <ProtectedRoute>
-              <SwipePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/swipe/:vacancyId/letter"
-          element={
-            <ProtectedRoute>
-              <CoverLetterPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <div className="pb-16 md:pb-0">
+        <Routes>
+          <Route
+            path="/"
+            element={isAuthenticated ? <Navigate to="/swipe" replace /> : <LandingPage />}
+          />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/auth/error" element={<AuthErrorPage />} />
+          <Route
+            path="/swipe"
+            element={
+              <ProtectedRoute>
+                <SwipePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/swipe/:vacancyId/letter"
+            element={
+              <ProtectedRoute>
+                <CoverLetterPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:id" element={<BlogPostPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route
+            path="/mio"
+            element={<BlogAdminPage />}
+          />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }

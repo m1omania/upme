@@ -48,7 +48,9 @@ export interface HHResume {
       name: string;
     };
   }>;
-  skills: Array<{ name: string }>;
+  skills?: Array<{ name: string } | string> | string; // Может быть массивом или строкой (описание)
+  key_skills?: Array<{ name: string } | string>;
+  skill_set?: Array<{ name: string } | string>; // Основное поле для навыков в HH.ru API
   education?: Array<{
     level?: {
       id: string;
@@ -264,7 +266,15 @@ export class HHApiService {
       const response = await this.client.get(`/resumes/${resumeId}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      return response.data;
+      
+      // Логируем структуру ответа для отладки навыков
+      const data = response.data;
+      logger.info(`HH.ru API Resume ${resumeId} response keys: ${Object.keys(data).join(', ')}`);
+      logger.info(`HH.ru API Resume ${resumeId} skills field: ${JSON.stringify(data.skills)}`);
+      logger.info(`HH.ru API Resume ${resumeId} key_skills field: ${JSON.stringify(data.key_skills)}`);
+      logger.info(`HH.ru API Resume ${resumeId} skill_set field: ${JSON.stringify(data.skill_set)}`);
+      
+      return data;
     } catch (error: any) {
       logger.error('Error getting resume:', error.response?.data || error.message);
       throw new Error('Failed to get resume');

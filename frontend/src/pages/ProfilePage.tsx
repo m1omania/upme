@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Container } from '@/components/ui/container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { userApi } from '../services/api';
-import type { Resume, Filters } from '../../../shared/types';
-import { Loader2 } from 'lucide-react';
+import { useUserStore } from '../store/userStore';
+import type { Resume } from '../../../shared/types';
+import { Loader2, LogOut } from 'lucide-react';
 
 interface ProfileData {
   id: number;
@@ -13,7 +14,6 @@ interface ProfileData {
   hh_user_id: string;
   created_at: string;
   resumes: Resume[];
-  filters: Filters;
 }
 
 interface HhUserInfo {
@@ -35,6 +35,8 @@ interface HhUserInfo {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const logout = useUserStore((state) => state.logout);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [hhInfo, setHhInfo] = useState<HhUserInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,8 +44,11 @@ export default function ProfilePage() {
   const [resumeLoading, setResumeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Partial<Filters>>({});
-  const [savingFilters, setSavingFilters] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const loadProfile = async () => {
     setLoading(true);
@@ -57,13 +62,6 @@ export default function ProfilePage() {
         if (data.resumes && data.resumes.length > 0) {
           setResumes(data.resumes);
         }
-        setFilters({
-          salary_min: data.filters.salary_min || undefined,
-          salary_max: data.filters.salary_max || undefined,
-          experience_level: data.filters.experience_level || undefined,
-          location: data.filters.location || undefined,
-          skills: data.filters.skills || [],
-        });
       } else {
         setError(response.error || 'Не удалось загрузить профиль');
       }
@@ -121,23 +119,6 @@ export default function ProfilePage() {
     }
   };
 
-  const saveFilters = async () => {
-    setSavingFilters(true);
-    setError(null);
-    try {
-      const response = await userApi.updateFilters(filters);
-      if (response.success) {
-        setSuccess('Фильтры успешно сохранены!');
-        await loadProfile();
-      } else {
-        setError(response.error || 'Не удалось сохранить фильтры');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при сохранении фильтров');
-    } finally {
-      setSavingFilters(false);
-    }
-  };
 
   useEffect(() => {
     loadProfile();
@@ -180,105 +161,59 @@ export default function ProfilePage() {
   return (
     <Container maxWidth="lg">
       <div className="py-8">
-        <h1 className="text-4xl font-bold mb-8">Профиль</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold">Профиль</h1>
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Выход
+          </Button>
+        </div>
 
         {/* Информация о пользователе */}
         <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Информация о пользователе</CardTitle>
-              <Button 
-                onClick={loadHhInfo} 
-                disabled={hhInfoLoading}
-                variant="outline"
-                size="sm"
-              >
-                {hhInfoLoading ? 'Загрузка...' : 'Обновить из HH.ru'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <span className="text-sm text-muted-foreground">Email:</span>
-                <p className="font-medium">{profile.email}</p>
-              </div>
-              <div>
-                <span className="text-sm text-muted-foreground">ID в HH.ru:</span>
-                <p className="font-medium">{profile.hh_user_id}</p>
-              </div>
-              <div>
-                <span className="text-sm text-muted-foreground">Дата регистрации:</span>
-                <p className="font-medium">
-                  {new Date(profile.created_at).toLocaleDateString('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </p>
-              </div>
-            </div>
+          <CardContent className="space-y-4 pt-6">
+            {/* Фотография из резюме */}
+            {resumes.length > 0 && (() => {
+              // Берем фото из первого резюме
+              const firstResume = resumes[0] as any;
+              const photo = firstResume.hh_data?.photo;
+              if (photo && (photo.medium || photo.small)) {
+                return (
+                  <div className="flex justify-center mb-4">
+                    <img
+                      src={photo.medium || photo.small}
+                      alt="Фото профиля"
+                      className="w-32 h-32 rounded-full object-cover border-4 border-primary/20"
+                    />
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
-            {/* Полная информация из HH.ru */}
-            {hhInfo?.userInfo && (
-              <div className="border-t pt-4 mt-4">
-                <h4 className="font-semibold mb-3 text-lg">Данные из HH.ru</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {hhInfo.userInfo.first_name && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Имя:</span>
-                      <p className="font-medium">{hhInfo.userInfo.first_name}</p>
-                    </div>
-                  )}
-                  {hhInfo.userInfo.last_name && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Фамилия:</span>
-                      <p className="font-medium">{hhInfo.userInfo.last_name}</p>
-                    </div>
-                  )}
-                  {hhInfo.userInfo.middle_name && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Отчество:</span>
-                      <p className="font-medium">{hhInfo.userInfo.middle_name}</p>
-                    </div>
-                  )}
-                  {hhInfo.userInfo.phone && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Телефон:</span>
-                      <p className="font-medium">{hhInfo.userInfo.phone}</p>
-                    </div>
-                  )}
-                  {hhInfo.userInfo.is_applicant !== undefined && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Соискатель:</span>
-                      <p className="font-medium">
-                        {hhInfo.userInfo.is_applicant ? 'Да' : 'Нет'}
-                      </p>
-                    </div>
-                  )}
-                  {hhInfo.userInfo.is_employer !== undefined && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Работодатель:</span>
-                      <p className="font-medium">
-                        {hhInfo.userInfo.is_employer ? 'Да' : 'Нет'}
-                      </p>
-                    </div>
-                  )}
-                  {hhInfo.userInfo.is_in_search !== undefined && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">В активном поиске:</span>
-                      <p className="font-medium">
-                        {hhInfo.userInfo.is_in_search ? (
-                          <span className="text-green-600">Да</span>
-                        ) : (
-                          <span className="text-muted-foreground">Нет</span>
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Имя из HH.ru */}
+            {hhInfo?.userInfo && (() => {
+              const firstName = hhInfo.userInfo.first_name;
+              const lastName = hhInfo.userInfo.last_name;
+              const middleName = hhInfo.userInfo.middle_name;
+              const fullName = [lastName, firstName, middleName].filter(Boolean).join(' ');
+              
+              if (fullName) {
+                return (
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold">{fullName}</h2>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Контактная информация скрыта, но остается в данных для генерации писем */}
+            {/* Email и phone доступны через hhInfo.userInfo для использования в AI сервисе */}
 
             {hhInfoLoading && (
               <div className="flex items-center justify-center py-4">
@@ -558,71 +493,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Фильтры поиска */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Фильтры поиска вакансий</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Минимальная зарплата (₽)</label>
-                <Input
-                  type="number"
-                  placeholder="Например: 50000"
-                  value={filters.salary_min || ''}
-                  onChange={(e) => setFilters({ ...filters, salary_min: e.target.value ? parseInt(e.target.value) : undefined })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Максимальная зарплата (₽)</label>
-                <Input
-                  type="number"
-                  placeholder="Например: 200000"
-                  value={filters.salary_max || ''}
-                  onChange={(e) => setFilters({ ...filters, salary_max: e.target.value ? parseInt(e.target.value) : undefined })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Уровень опыта</label>
-                <Input
-                  placeholder="Например: middle, senior"
-                  value={filters.experience_level || ''}
-                  onChange={(e) => setFilters({ ...filters, experience_level: e.target.value || undefined })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Локация</label>
-                <Input
-                  placeholder="Например: Москва, Санкт-Петербург"
-                  value={filters.location || ''}
-                  onChange={(e) => setFilters({ ...filters, location: e.target.value || undefined })}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Навыки (через запятую)</label>
-              <Input
-                placeholder="Например: JavaScript, React, TypeScript"
-                value={Array.isArray(filters.skills) ? filters.skills.join(', ') : ''}
-                onChange={(e) => {
-                  const skills = e.target.value
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(s => s.length > 0);
-                  setFilters({ ...filters, skills });
-                }}
-              />
-            </div>
-            <Button 
-              onClick={saveFilters} 
-              disabled={savingFilters}
-              className="w-full md:w-auto"
-            >
-              {savingFilters ? 'Сохранение...' : 'Сохранить фильтры'}
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </Container>
   );

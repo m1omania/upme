@@ -68,5 +68,19 @@ export class ApplicationModel {
     `);
     return stmt.get(user_id) as any;
   }
+
+  /**
+   * Получает список hh_vacancy_id вакансий, на которые пользователь уже откликался
+   */
+  static getAppliedHhVacancyIds(user_id: number): string[] {
+    const stmt = db.prepare(`
+      SELECT DISTINCT v.hh_vacancy_id
+      FROM applications a
+      INNER JOIN vacancies v ON a.vacancy_id = v.id
+      WHERE a.user_id = ?
+    `);
+    const results = stmt.all(user_id) as { hh_vacancy_id: string }[];
+    return results.map(r => r.hh_vacancy_id);
+  }
 }
 
