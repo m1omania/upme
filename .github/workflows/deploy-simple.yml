@@ -1,0 +1,18 @@
+name: Deploy to Production (Simple)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify deployment ready
+        run: |
+          echo "✅ Код обновлен в ветке main"
+          echo "📦 Для деплоя выполните на сервере:"
+          echo "   cd /var/www/upme && git pull && ./deploy.sh"
+

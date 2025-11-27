@@ -47,3 +47,12 @@ Frontend будет доступен на `http://localhost:3000`
 - `POST /api/ai/generate-letter` - Генерация письма
 - `GET /api/gamification/stats` - Статистика геймификации
 
+## Деплой
+
+Проект развернут на `https://upme.pro`
+
+Для обновления на сервере выполните:
+```bash
+cd /var/www/upme && ./deploy.sh
+```
+
