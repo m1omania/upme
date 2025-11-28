@@ -5,6 +5,9 @@ echo "🔄 Обновление проекта..."
 
 cd /var/www/upme
 
+echo "📥 Получение изменений из Git..."
+git pull origin main || echo "⚠️ Git pull failed, continuing..."
+
 echo "📦 Обновление зависимостей..."
 cd backend && npm install --production && cd ..
 cd frontend && npm install && cd ..
