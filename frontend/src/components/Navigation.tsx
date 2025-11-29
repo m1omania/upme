@@ -22,7 +22,9 @@ export default function Navigation() {
     return location.pathname === path;
   };
 
-  const isSwipePage = location.pathname === '/swipe' || location.pathname.startsWith('/swipe/');
+  // Показываем логотип и фильтры только на странице /swipe, но не на странице отклика
+  const isSwipePage = location.pathname === '/swipe';
+  const isCoverLetterPage = location.pathname.includes('/letter');
 
   return (
     <>
@@ -78,7 +80,7 @@ export default function Navigation() {
       )}
 
       {/* Desktop Navigation - Top Bar (for other pages) */}
-      {!isSwipePage && (
+      {!isSwipePage && !isCoverLetterPage && (
         <nav className="hidden md:flex border-b bg-background sticky top-0 z-50">
           <div className="container mx-auto flex h-16 items-center justify-between px-4 w-full">
             {/* Logo */}
@@ -115,29 +117,31 @@ export default function Navigation() {
         </nav>
       )}
 
-      {/* Mobile Navigation - Bottom Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50 shadow-lg">
-        <div className="flex items-center justify-around h-16 px-2 pb-safe">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full rounded-lg transition-colors ${
-                  active
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Mobile Navigation - Bottom Bar (скрыт на странице отклика) */}
+      {!isCoverLetterPage && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50 shadow-lg">
+          <div className="flex items-center justify-around h-16 px-2 pb-safe">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`flex flex-col items-center justify-center gap-1 flex-1 h-full rounded-lg transition-colors ${
+                    active
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="text-xs font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* Filters Dialog */}
       <FiltersDialog open={filtersOpen} onOpenChange={setFiltersOpen} />

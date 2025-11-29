@@ -215,9 +215,12 @@ router.post('/dev-login', async (req: Request, res: Response<ApiResponse<{ token
         access_token: 'dev-access-token',
         refresh_token: 'dev-refresh-token',
       });
-      
-      // Создаем тестовое резюме
-      const { ResumeModel } = await import('../models/Resume');
+    }
+    
+    // Убеждаемся, что у пользователя есть резюме (создаем даже если пользователь уже существует)
+    const { ResumeModel } = await import('../models/Resume');
+    const existingResumes = ResumeModel.findByUserId(user.id);
+    if (existingResumes.length === 0) {
       ResumeModel.upsert({
         user_id: user.id,
         hh_resume_id: 'dev-resume-123',
@@ -225,6 +228,7 @@ router.post('/dev-login', async (req: Request, res: Response<ApiResponse<{ token
         experience: 'Опыт работы: Frontend Developer в компании X (2 года)',
         skills: ['React', 'TypeScript', 'JavaScript', 'HTML', 'CSS'],
       });
+      logger.info('Dev login - Created test resume for dev user');
     }
     
     // Генерируем JWT токен

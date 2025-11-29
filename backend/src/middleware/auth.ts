@@ -26,6 +26,21 @@ export const authenticate = async (
           refresh_token: 'dev-refresh-token',
         });
       }
+      
+      // Убеждаемся, что у пользователя есть резюме
+      const { ResumeModel } = await import('../models/Resume');
+      const existingResumes = ResumeModel.findByUserId(user.id);
+      if (existingResumes.length === 0) {
+        ResumeModel.upsert({
+          user_id: user.id,
+          hh_resume_id: 'dev-resume-123',
+          title: 'Тестовое резюме (Frontend Developer)',
+          experience: 'Опыт работы: Frontend Developer в компании X (2 года)',
+          skills: ['React', 'TypeScript', 'JavaScript', 'HTML', 'CSS'],
+        });
+        logger.info('Auth middleware - Created test resume for dev user');
+      }
+      
       req.userId = user.id;
       req.user = user;
       logger.info('Auth middleware - Dev bypass enabled, using dev user:', { userId: user.id });

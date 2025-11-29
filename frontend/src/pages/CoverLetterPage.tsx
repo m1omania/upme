@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { aiApi, applicationsApi, vacanciesApi } from '../services/api';
 import { Container } from '@/components/ui/container';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Send, Loader2, Sparkles } from 'lucide-react';
@@ -13,7 +13,6 @@ export default function CoverLetterPage() {
   const navigate = useNavigate();
   const [letter, setLetter] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isImproving, setIsImproving] = useState(false);
 
   const { data: vacancy, error: vacancyError } = useQuery({
     queryKey: ['vacancy', vacancyId],
@@ -79,7 +78,7 @@ export default function CoverLetterPage() {
     mutationFn: async () => {
       if (!letter.trim()) throw new Error('Письмо пустое');
       const response = await aiApi.improveLetter(letter);
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error(response.error || 'Не удалось улучшить письмо');
       }
       return response.data.letter;
@@ -168,97 +167,143 @@ export default function CoverLetterPage() {
   }
 
   return (
-    <Container maxWidth="md">
-      <div className="py-8">
+    <Container maxWidth="md" className="h-screen flex flex-col">
+      <div className="py-8 pb-24 md:pb-8 flex flex-col flex-1 min-h-0">
         <Button
-          variant="ghost"
+          variant="outline"
           onClick={() => navigate('/swipe')}
-          className="mb-4"
+          className="mb-4 flex-shrink-0 self-start"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Назад
         </Button>
 
-        <Card>
+        <Card className="mb-4 flex-shrink-0">
           <CardHeader>
             <CardTitle>Сопроводительное письмо</CardTitle>
             <p className="text-sm text-muted-foreground">
               Вакансия: {(vacancy as any).title} в {(vacancy as any).company}
             </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {isGenerating ? (
-              <div className="flex flex-col items-center justify-center p-8 gap-4">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <p className="text-muted-foreground">Генерация письма...</p>
+        </Card>
+
+        {isGenerating ? (
+          <div className="flex flex-col items-center justify-center p-8 gap-4 flex-1">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-muted-foreground">Генерация письма...</p>
+          </div>
+        ) : (
+          <>
+            <Textarea
+              value={letter}
+              onChange={(e) => setLetter(e.target.value)}
+              placeholder="Сопроводительное письмо будет сгенерировано автоматически..."
+              className="flex-1 w-full resize-none"
+            />
+
+            {/* Кнопки на десктопе - обычное расположение */}
+            <div className="hidden md:flex flex-col gap-3 mt-4">
+              <Button
+                variant="outline"
+                onClick={handleImprove}
+                disabled={!letter.trim() || improveLetter.isPending}
+                className="w-full"
+              >
+                {improveLetter.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Улучшение...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Улучшить письмо
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={!letter.trim() || createApplication.isPending}
+                size="lg"
+                className="w-full"
+              >
+                {createApplication.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Отправка...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Отправить отклик
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {improveLetter.isError && (
+              <div className="p-4 bg-destructive/10 text-destructive rounded-md text-sm mt-4">
+                {improveLetter.error instanceof Error
+                  ? improveLetter.error.message
+                  : 'Ошибка при улучшении письма'}
               </div>
+            )}
+
+            {createApplication.isError && (
+              <div className="p-4 bg-destructive/10 text-destructive rounded-md mt-4">
+                {createApplication.error instanceof Error
+                  ? createApplication.error.message
+                  : 'Ошибка при отправке отклика'}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Зафиксированные кнопки на мобильных устройствах */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t p-4 z-50 shadow-lg">
+        <div className="flex flex-row gap-3 max-w-md mx-auto">
+          <Button
+            variant="outline"
+            onClick={handleImprove}
+            disabled={!letter.trim() || improveLetter.isPending || isGenerating}
+            className="flex-1"
+          >
+            {improveLetter.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span className="hidden sm:inline">Улучшение...</span>
+                <span className="sm:hidden">Улучшить</span>
+              </>
             ) : (
               <>
-                <Textarea
-                  value={letter}
-                  onChange={(e) => setLetter(e.target.value)}
-                  placeholder="Сопроводительное письмо будет сгенерировано автоматически..."
-                  className="min-h-[200px]"
-                />
-
-                <div className="flex flex-col gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={handleImprove}
-                    disabled={!letter.trim() || isImproving || improveLetter.isPending}
-                    className="w-full"
-                  >
-                    {isImproving || improveLetter.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Улучшение...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Улучшить письмо
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!letter.trim() || createApplication.isPending}
-                    size="lg"
-                    className="w-full"
-                  >
-                    {createApplication.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Отправка...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 h-4 w-4" />
-                        Отправить отклик
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {improveLetter.isError && (
-                  <div className="p-4 bg-destructive/10 text-destructive rounded-md text-sm">
-                    {improveLetter.error instanceof Error
-                      ? improveLetter.error.message
-                      : 'Ошибка при улучшении письма'}
-                  </div>
-                )}
-
-                {createApplication.isError && (
-                  <div className="p-4 bg-destructive/10 text-destructive rounded-md">
-                    {createApplication.error instanceof Error
-                      ? createApplication.error.message
-                      : 'Ошибка при отправке отклика'}
-                  </div>
-                )}
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Улучшить письмо</span>
+                <span className="sm:hidden">Улучшить</span>
               </>
             )}
-          </CardContent>
-        </Card>
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!letter.trim() || createApplication.isPending || isGenerating}
+            size="lg"
+            className="flex-1"
+          >
+            {createApplication.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span className="hidden sm:inline">Отправка...</span>
+                <span className="sm:hidden">Отправка</span>
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Отправить отклик</span>
+                <span className="sm:hidden">Отправить</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </Container>
   );

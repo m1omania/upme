@@ -47,8 +47,13 @@ export default function SwipeCard({
   vacancy,
   relevance,
   reasons,
+  onSwipeLeft,
+  onSwipeRight,
   onCardClick,
 }: SwipeCardProps) {
+  const [dragDirection, setDragDirection] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState(false);
+
   // Вычисляем финальный отступ на основе релевантности (в пикселях)
   // При 100% релевантности элементы перекрываются на четверть (28px из 112px)
   const getFinalGap = (score: number) => {
@@ -70,17 +75,84 @@ export default function SwipeCard({
   const overlap = finalGap < 0 ? Math.abs(finalGap) : 0;
   const actualGap = finalGap < 0 ? 0 : finalGap;
 
+  const handleDragEnd = (event: any, info: any) => {
+    const threshold = 100; // Минимальное расстояние для свайпа
+    const velocity = info.velocity.x;
+
+    if (Math.abs(info.offset.x) > threshold || Math.abs(velocity) > 500) {
+      if (info.offset.x > 0 || velocity > 0) {
+        // Свайп вправо
+        onSwipeRight();
+      } else {
+        // Свайп влево
+        onSwipeLeft();
+      }
+      // Сбрасываем состояние после свайпа
+      setTimeout(() => {
+        setIsDragging(false);
+        setDragDirection(0);
+      }, 100);
+    } else {
+      // Возвращаем карточку на место
+      setIsDragging(false);
+      setDragDirection(0);
+    }
+  };
+
+  // Вычисляем прозрачность и цвет в зависимости от направления свайпа
+  const getSwipeStyle = () => {
+    if (!isDragging || Math.abs(dragDirection) < 50) {
+      return { opacity: 1, backgroundColor: 'transparent' };
+    }
+    
+    if (dragDirection > 0) {
+      // Свайп вправо (отклик) - зеленый оттенок
+      return { 
+        opacity: 1 - Math.abs(dragDirection) / 600,
+        backgroundColor: 'rgba(34, 197, 94, 0.1)'
+      };
+    } else {
+      // Свайп влево (пропуск) - красный оттенок
+      return { 
+        opacity: 1 - Math.abs(dragDirection) / 600,
+        backgroundColor: 'rgba(239, 68, 68, 0.1)'
+      };
+    }
+  };
+
+  const swipeStyle = getSwipeStyle();
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      animate={{ 
+        opacity: swipeStyle.opacity, 
+        scale: 1,
+        x: isDragging ? dragDirection : 0,
+        rotate: isDragging ? dragDirection * 0.1 : 0,
+      }}
+      exit={{ opacity: 0, scale: 0.9, x: dragDirection }}
       transition={{ duration: 0.3 }}
       className="w-full max-w-md"
+      drag="x"
+      dragConstraints={{ left: -300, right: 300 }}
+      dragElastic={0.2}
+      onDrag={(event, info) => {
+        setIsDragging(true);
+        setDragDirection(info.offset.x);
+      }}
+      onDragEnd={handleDragEnd}
+      whileDrag={{ cursor: 'grabbing' }}
     >
       <Card 
-        className="h-[600px] flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-        onClick={onCardClick}
+        className="h-[600px] flex flex-col overflow-hidden cursor-grab hover:shadow-lg transition-shadow touch-none"
+        style={{ backgroundColor: swipeStyle.backgroundColor }}
+        onClick={(e) => {
+          // Предотвращаем клик при свайпе
+          if (!isDragging && Math.abs(dragDirection) < 10) {
+            onCardClick?.();
+          }
+        }}
       >
         <CardContent className="flex-grow overflow-auto p-6">
           {/* Логотип и круг с процентом по центру с анимацией */}
@@ -104,14 +176,14 @@ export default function SwipeCard({
             </motion.div>
           </motion.div>
 
-          {/* Название компании */}
-          <h3 className="text-xl font-semibold mb-2">{vacancy.company}</h3>
-
           {/* Название вакансии */}
-          <h2 className="text-2xl font-bold mb-4">{vacancy.title}</h2>
+          <h2 className="text-2xl font-bold mb-2 text-center">{vacancy.title}</h2>
+
+          {/* Название компании */}
+          <h3 className="text-xl font-semibold mb-2 text-muted-foreground text-center">{vacancy.company}</h3>
 
           {vacancy.salary && (
-            <div className="mb-4 text-xl font-bold">
+            <div className="mb-4 text-xl font-bold text-center">
               {vacancy.salary}
             </div>
           )}
