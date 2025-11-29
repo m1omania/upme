@@ -46,6 +46,125 @@ router.get('/relevant', authenticate, async (req: AuthRequest, res: Response<Api
     const user = UserModel.findById(userId)!;
     const filters = FilterModel.getOrCreate(userId);
 
+    // Мок-режим для локальной разработки
+    if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_DATA === 'true') {
+      logger.info('Using mock data for vacancies');
+      
+      // Сохраняем мок-вакансии в БД с разными уровнями релевантности
+      const mockVacanciesData = [
+        {
+          hh_vacancy_id: 'mock-1',
+          title: 'Frontend Developer (React/TypeScript)',
+          company: 'Технологическая компания',
+          salary: '150000-200000 Рублей',
+          description: 'Ищем опытного Frontend разработчика для работы над современными веб-приложениями. Требования: React, TypeScript, JavaScript, HTML, CSS. Опыт работы от 2 лет. Работа в дружной команде, возможность удаленной работы.',
+          requirements: ['React', 'TypeScript', 'JavaScript', 'HTML', 'CSS'],
+          logo_url: 'https://via.placeholder.com/240x240?text=Company+1',
+          mockRelevance: 100, // 100% релевантность - идеальное совпадение
+        },
+        {
+          hh_vacancy_id: 'mock-2',
+          title: 'Senior Frontend Developer',
+          company: 'IT-Стартап',
+          salary: '200000-250000 Рублей',
+          description: 'Разработка пользовательских интерфейсов для мобильных и веб-приложений. Работа в команде опытных разработчиков. Современный стек технологий, интересные проекты.',
+          requirements: ['React', 'JavaScript', 'Vue.js', 'Node.js'],
+          logo_url: 'https://via.placeholder.com/240x240?text=Company+2',
+          mockRelevance: 75, // Средняя-высокая релевантность
+        },
+        {
+          hh_vacancy_id: 'mock-3',
+          title: 'Full Stack Developer',
+          company: 'Веб-студия',
+          salary: '120000-180000 Рублей',
+          description: 'Разработка полного цикла веб-приложений. Frontend и Backend разработка. Работа над проектами различной сложности.',
+          requirements: ['JavaScript', 'HTML', 'CSS', 'Angular', 'Node.js', 'Redux'],
+          logo_url: 'https://via.placeholder.com/240x240?text=Company+3',
+          mockRelevance: 55, // Средняя релевантность
+        },
+        {
+          hh_vacancy_id: 'mock-4',
+          title: 'Backend Developer (Python)',
+          company: 'Финтех компания',
+          salary: '180000-220000 Рублей',
+          description: 'Разработка серверной части приложений. Требования: Python, Django, PostgreSQL, опыт работы с микросервисами.',
+          requirements: ['Python', 'Django', 'PostgreSQL', 'Docker', 'Kubernetes'],
+          logo_url: 'https://via.placeholder.com/240x240?text=Company+4',
+          mockRelevance: 25, // Низкая релевантность - другой стек
+        },
+        {
+          hh_vacancy_id: 'mock-5',
+          title: 'UI/UX Designer',
+          company: 'Дизайн-студия',
+          salary: '100000-150000 Рублей',
+          description: 'Создание пользовательских интерфейсов и дизайн-систем. Работа в Figma, знание принципов UX.',
+          requirements: ['Figma', 'Adobe XD', 'UI/UX', 'Дизайн', 'Прототипирование'],
+          logo_url: 'https://via.placeholder.com/240x240?text=Company+5',
+          mockRelevance: 15, // Очень низкая релевантность - другая профессия
+        },
+      ];
+      
+      VacancyModel.bulkCreate(mockVacanciesData.map(({ mockRelevance, ...v }) => v));
+      
+      // Получаем резюме для расчета релевантности
+      const dbResumes = ResumeModel.findByUserId(userId);
+      const resume = dbResumes[0] || {
+        skills: ['React', 'TypeScript', 'JavaScript', 'HTML', 'CSS'],
+        experience: 'Frontend Developer',
+        title: 'Frontend Developer',
+      };
+      
+      // Формируем ответ с релевантностью (используем мок-релевантность или расчет)
+      const mockVacancies = mockVacanciesData.map((v, index) => {
+        const cachedVacancy = VacancyModel.findByHhVacancyId(v.hh_vacancy_id);
+        if (!cachedVacancy) return null;
+        
+        // Используем мок-релевантность если указана, иначе рассчитываем
+        let relevance: VacancyRelevance;
+        if (v.mockRelevance !== undefined) {
+          // Генерируем причины на основе уровня релевантности
+          const reasons: string[] = [];
+          if (v.mockRelevance >= 80) {
+            reasons.push(`Совпадение навыков: ${v.requirements.filter(r => resume.skills?.some(s => s.toLowerCase().includes(r.toLowerCase()))).length} из ${v.requirements.length}`);
+            reasons.push('Опыт работы с технологиями: React, TypeScript');
+            reasons.push('Совпадение роли');
+          } else if (v.mockRelevance >= 50) {
+            reasons.push(`Совпадение навыков: ${v.requirements.filter(r => resume.skills?.some(s => s.toLowerCase().includes(r.toLowerCase()))).length} из ${v.requirements.length}`);
+            reasons.push('Частичное соответствие опыту');
+          } else {
+            reasons.push('Базовая релевантность');
+          }
+          
+          relevance = {
+            vacancy_id: cachedVacancy.hh_vacancy_id,
+            relevance_score: v.mockRelevance,
+            reasons: reasons.length > 0 ? reasons : ['Базовая релевантность'],
+          };
+        } else {
+          relevance = RelevanceService.calculateRelevance(cachedVacancy, resume);
+        }
+        
+        return {
+          ...relevance,
+          vacancy: {
+            id: cachedVacancy.id,
+            hh_vacancy_id: cachedVacancy.hh_vacancy_id,
+            title: cachedVacancy.title,
+            company: cachedVacancy.company,
+            salary: cachedVacancy.salary,
+            description: cachedVacancy.description,
+            requirements: cachedVacancy.requirements,
+            logo_url: cachedVacancy.logo_url,
+          },
+        };
+      }).filter(v => v !== null) as Array<VacancyRelevance & { vacancy: any }>;
+      
+      return res.json({
+        success: true,
+        data: mockVacancies,
+      });
+    }
+
     // Получаем резюме пользователя
     const dbResumes = ResumeModel.findByUserId(userId);
     
@@ -111,11 +230,13 @@ router.get('/relevant', authenticate, async (req: AuthRequest, res: Response<Api
       title: v.name,
       company: v.employer.name,
       salary: v.salary
-        ? `${v.salary.from || ''}${v.salary.to ? '-' + v.salary.to : ''} ${v.salary.currency || 'RUB'}`
+        ? `${v.salary.from || ''}${v.salary.to ? '-' + v.salary.to : ''} ${v.salary.currency === 'RUR' || v.salary.currency === 'RUB' ? 'Рублей' : v.salary.currency || 'Рублей'}`
         : null,
       // Используем description если есть, иначе snippet (будет загружено полное при открытии)
       description: v.description || `${v.snippet.requirement || ''} ${v.snippet.responsibility || ''}`.trim(),
       requirements: v.key_skills?.map(s => s.name) || [],
+      // Логотип компании (приоритет: original > 240 > 90)
+      logo_url: v.employer.logo_urls?.original || v.employer.logo_urls?.['240'] || v.employer.logo_urls?.['90'] || null,
     }));
     
     logger.info(`Caching ${vacanciesToCache.length} vacancies (descriptions: ${vacanciesToCache.filter(v => v.description && v.description.length > 200).length} full, ${vacanciesToCache.filter(v => !v.description || v.description.length <= 200).length} short)`);
@@ -144,6 +265,7 @@ router.get('/relevant', authenticate, async (req: AuthRequest, res: Response<Api
           salary: cachedVacancy.salary,
           description: cachedVacancy.description,
           requirements: cachedVacancy.requirements,
+          logo_url: cachedVacancy.logo_url,
         },
       };
     }).filter(v => v !== null) as Array<VacancyRelevance & { vacancy: any }>;
@@ -196,12 +318,18 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response<ApiRespo
         
         // Обновляем описание в кэше, если получили более полное
         if (fullVacancy.description && fullVacancy.description.length > currentDescriptionLength) {
+          const logoUrl = fullVacancy.employer?.logo_urls?.original || 
+                         fullVacancy.employer?.logo_urls?.['240'] || 
+                         fullVacancy.employer?.logo_urls?.['90'] || 
+                         null;
+          
           const updatedVacancy = VacancyModel.update(vacancyId, {
             title: fullVacancy.name || vacancy.title,
             company: fullVacancy.employer?.name || vacancy.company,
             salary: vacancy.salary, // Сохраняем форматированную зарплату
             description: fullVacancy.description, // Полное описание
             requirements: fullVacancy.key_skills?.map(s => s.name) || vacancy.requirements,
+            logo_url: logoUrl || vacancy.logo_url, // Обновляем логотип если есть
           });
           
           if (updatedVacancy) {

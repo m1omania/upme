@@ -187,7 +187,7 @@ export default function SwipePage() {
   return (
     <>
       <Container maxWidth="sm">
-        <div className="py-8 flex flex-col items-center gap-4">
+        <div className="pt-0 md:pt-8 pb-8 flex flex-col items-center gap-4">
           <SwipeCard
             key={currentVacancy.vacancy.id}
             vacancy={currentVacancy.vacancy}

@@ -29,6 +29,7 @@ export interface Vacancy {
   salary: string | null;
   description: string;
   requirements: string[];
+  logo_url: string | null;
   cached_at: string;
 }
 

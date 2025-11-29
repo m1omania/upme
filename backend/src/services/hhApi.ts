@@ -6,6 +6,11 @@ export interface HHVacancy {
   name: string;
   employer: {
     name: string;
+    logo_urls?: {
+      original?: string;
+      '90'?: string;
+      '240'?: string;
+    };
   };
   salary: {
     from?: number;

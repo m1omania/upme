@@ -5,6 +5,10 @@ import path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 // Также пробуем загрузить из текущей директории (на случай если запускаем из корня)
 dotenv.config();
+// Для локальной разработки загружаем .env.local (переопределяет значения из .env)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+}
 
 import express from 'express';
 import cors from 'cors';

@@ -9,10 +9,11 @@ export class VacancyModel {
     salary?: string | null;
     description: string;
     requirements: string[];
+    logo_url?: string | null;
   }): Vacancy {
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO vacancies (hh_vacancy_id, title, company, salary, description, requirements, cached_at)
-      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT OR REPLACE INTO vacancies (hh_vacancy_id, title, company, salary, description, requirements, logo_url, cached_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
     
     stmt.run(
@@ -21,7 +22,8 @@ export class VacancyModel {
       data.company,
       data.salary || null,
       data.description,
-      JSON.stringify(data.requirements)
+      JSON.stringify(data.requirements),
+      data.logo_url || null
     );
 
     return this.findByHhVacancyId(data.hh_vacancy_id)!;
@@ -66,10 +68,11 @@ export class VacancyModel {
     salary?: string | null;
     description: string;
     requirements: string[];
+    logo_url?: string | null;
   }>): void {
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO vacancies (hh_vacancy_id, title, company, salary, description, requirements, cached_at)
-      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT OR REPLACE INTO vacancies (hh_vacancy_id, title, company, salary, description, requirements, logo_url, cached_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
 
     const insertMany = db.transaction((vacancies) => {
@@ -80,7 +83,8 @@ export class VacancyModel {
           vacancy.company,
           vacancy.salary || null,
           vacancy.description,
-          JSON.stringify(vacancy.requirements)
+          JSON.stringify(vacancy.requirements),
+          vacancy.logo_url || null
         );
       }
     });
@@ -94,6 +98,7 @@ export class VacancyModel {
     salary?: string | null;
     description?: string;
     requirements?: string[];
+    logo_url?: string | null;
   }): Vacancy | null {
     const updates: string[] = [];
     const values: any[] = [];
@@ -117,6 +122,10 @@ export class VacancyModel {
     if (data.requirements !== undefined) {
       updates.push('requirements = ?');
       values.push(JSON.stringify(data.requirements));
+    }
+    if (data.logo_url !== undefined) {
+      updates.push('logo_url = ?');
+      values.push(data.logo_url || null);
     }
 
     if (updates.length === 0) {

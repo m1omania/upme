@@ -97,6 +97,7 @@ export const api = new ApiClient();
 // Auth API
 export const authApi = {
   getAuthUrl: () => api.get<{ authUrl: string }>('/api/auth/hh'),
+  devLogin: () => api.post<{ token: string }>('/api/auth/dev-login', {}),
 };
 
 // Vacancies API

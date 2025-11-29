@@ -14,6 +14,24 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Обход авторизации в development режиме (если включен)
+    if (process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
+      // Создаем или находим тестового пользователя
+      let user = UserModel.findByHhUserId('dev-user-123');
+      if (!user) {
+        user = UserModel.create({
+          hh_user_id: 'dev-user-123',
+          email: 'dev@test.local',
+          access_token: 'dev-access-token',
+          refresh_token: 'dev-refresh-token',
+        });
+      }
+      req.userId = user.id;
+      req.user = user;
+      logger.info('Auth middleware - Dev bypass enabled, using dev user:', { userId: user.id });
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     logger.info('Auth middleware - Authorization header:', { 
       hasHeader: !!authHeader,

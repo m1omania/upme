@@ -28,7 +28,7 @@ export default function Navigation() {
     <>
       {/* Top Bar - Only on Swipe Page */}
       {isSwipePage && (
-        <nav className="flex border-b bg-background sticky top-0 z-50">
+        <nav className="flex bg-background sticky top-0 z-50">
           <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-4 w-full">
             {/* Logo */}
             <div className="flex items-center gap-2">

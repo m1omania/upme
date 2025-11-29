@@ -192,5 +192,54 @@ router.post('/logout', (req: Request, res: Response<ApiResponse<void>>) => {
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
+// Тестовый вход для локальной разработки
+// НЕ требует авторизации - это публичный endpoint для входа
+// Доступен только если NODE_ENV !== 'production' или есть ALLOW_DEV_AUTH_BYPASS
+router.post('/dev-login', async (req: Request, res: Response<ApiResponse<{ token: string }>>) => {
+  // Проверяем, что это development режим
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_AUTH_BYPASS !== 'true') {
+    return res.status(403).json({ 
+      success: false, 
+      error: 'Dev login is only available in development mode' 
+    });
+  }
+  
+  try {
+    // Создаем или находим тестового пользователя
+    let user = UserModel.findByHhUserId('dev-user-123');
+    
+    if (!user) {
+      user = UserModel.create({
+        hh_user_id: 'dev-user-123',
+        email: 'dev@test.local',
+        access_token: 'dev-access-token',
+        refresh_token: 'dev-refresh-token',
+      });
+      
+      // Создаем тестовое резюме
+      const { ResumeModel } = await import('../models/Resume');
+      ResumeModel.upsert({
+        user_id: user.id,
+        hh_resume_id: 'dev-resume-123',
+        title: 'Тестовое резюме (Frontend Developer)',
+        experience: 'Опыт работы: Frontend Developer в компании X (2 года)',
+        skills: ['React', 'TypeScript', 'JavaScript', 'HTML', 'CSS'],
+      });
+    }
+    
+    // Генерируем JWT токен
+    const token = generateToken({ userId: user.id, email: user.email });
+    
+    res.json({ 
+      success: true, 
+      data: { token },
+      message: 'Dev login successful. Use this token in Authorization header: Bearer <token>'
+    });
+  } catch (error: any) {
+    logger.error('Dev login error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;
 
