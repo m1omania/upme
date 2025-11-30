@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion';
+import { motion, useSpring, useMotionValueEvent } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import RelevanceBadge from './RelevanceBadge';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SwipeCardProps {
   vacancy: {
@@ -19,6 +19,8 @@ interface SwipeCardProps {
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   onCardClick?: () => void;
+  animateLeft?: boolean;
+  animateRight?: boolean;
 }
 
 // Компонент для логотипа с fallback на placeholder
@@ -50,9 +52,12 @@ export default function SwipeCard({
   onSwipeLeft,
   onSwipeRight,
   onCardClick,
+  animateLeft,
+  animateRight,
 }: SwipeCardProps) {
   const [dragDirection, setDragDirection] = useState<number>(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [programmaticSwipe, setProgrammaticSwipe] = useState<'left' | 'right' | null>(null);
 
   // Вычисляем финальный отступ на основе релевантности (в пикселях)
   // При 100% релевантности элементы перекрываются на четверть (28px из 112px)
@@ -71,11 +76,52 @@ export default function SwipeCard({
   const finalGap = getFinalGap(relevance);
   const maxGap = 160; // Максимальное начальное расстояние (160px)
   
-  // Вычисляем смещение для перекрытия (отрицательное значение означает перекрытие)
-  const overlap = finalGap < 0 ? Math.abs(finalGap) : 0;
-  const actualGap = finalGap < 0 ? 0 : finalGap;
+  // Spring для синхронизации анимации счетчика и движения элементов
+  const scoreSpring = useSpring(0, { stiffness: 50, damping: 30 });
+  const [currentScore, setCurrentScore] = useState(0);
+  
+  useEffect(() => {
+    scoreSpring.set(relevance);
+  }, [relevance, scoreSpring]);
+  
+  useMotionValueEvent(scoreSpring, 'change', (latest) => {
+    setCurrentScore(latest);
+  });
+  
+  // Вычисляем текущий gap на основе текущего процента (1px = 1%)
+  // При 0%: gap = maxGap (160px), при 100%: gap = finalGap
+  const currentGap = maxGap + (finalGap - maxGap) * (currentScore / 100);
+  const actualGap = currentGap < 0 ? 0 : currentGap;
+  
+  // Вычисляем смещение для перекрытия на основе текущего процента
+  const currentOverlap = currentGap < 0 ? Math.abs(currentGap) : 0;
 
-  const handleDragEnd = (event: any, info: any) => {
+  // Обработка программной анимации при клике на кнопки
+  useEffect(() => {
+    if (animateLeft) {
+      setProgrammaticSwipe('left');
+      setDragDirection(-300);
+      setIsDragging(true);
+      setTimeout(() => {
+        onSwipeLeft();
+        setProgrammaticSwipe(null);
+        setIsDragging(false);
+        setDragDirection(0);
+      }, 300);
+    } else if (animateRight) {
+      setProgrammaticSwipe('right');
+      setDragDirection(300);
+      setIsDragging(true);
+      setTimeout(() => {
+        onSwipeRight();
+        setProgrammaticSwipe(null);
+        setIsDragging(false);
+        setDragDirection(0);
+      }, 300);
+    }
+  }, [animateLeft, animateRight, onSwipeLeft, onSwipeRight]);
+
+  const handleDragEnd = (_event: any, info: any) => {
     const threshold = 100; // Минимальное расстояние для свайпа
     const velocity = info.velocity.x;
 
@@ -101,20 +147,22 @@ export default function SwipeCard({
 
   // Вычисляем прозрачность и цвет в зависимости от направления свайпа
   const getSwipeStyle = () => {
-    if (!isDragging || Math.abs(dragDirection) < 50) {
+    const currentDirection = programmaticSwipe === 'left' ? -300 : programmaticSwipe === 'right' ? 300 : dragDirection;
+    
+    if (!isDragging && !programmaticSwipe || Math.abs(currentDirection) < 50) {
       return { opacity: 1, backgroundColor: 'transparent' };
     }
     
-    if (dragDirection > 0) {
+    if (currentDirection > 0) {
       // Свайп вправо (отклик) - зеленый оттенок
       return { 
-        opacity: 1 - Math.abs(dragDirection) / 600,
+        opacity: 1 - Math.abs(currentDirection) / 600,
         backgroundColor: 'rgba(34, 197, 94, 0.1)'
       };
     } else {
       // Свайп влево (пропуск) - красный оттенок
       return { 
-        opacity: 1 - Math.abs(dragDirection) / 600,
+        opacity: 1 - Math.abs(currentDirection) / 600,
         backgroundColor: 'rgba(239, 68, 68, 0.1)'
       };
     }
@@ -128,16 +176,16 @@ export default function SwipeCard({
       animate={{ 
         opacity: swipeStyle.opacity, 
         scale: 1,
-        x: isDragging ? dragDirection : 0,
-        rotate: isDragging ? dragDirection * 0.1 : 0,
+        x: (isDragging || programmaticSwipe) ? dragDirection : 0,
+        rotate: (isDragging || programmaticSwipe) ? dragDirection * 0.1 : 0,
       }}
       exit={{ opacity: 0, scale: 0.9, x: dragDirection }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: programmaticSwipe ? 0.3 : 0.3 }}
       className="w-full max-w-md"
       drag="x"
       dragConstraints={{ left: -300, right: 300 }}
       dragElastic={0.2}
-      onDrag={(event, info) => {
+      onDrag={(_event, info) => {
         setIsDragging(true);
         setDragDirection(info.offset.x);
       }}
@@ -147,20 +195,18 @@ export default function SwipeCard({
       <Card 
         className="h-[600px] flex flex-col overflow-hidden cursor-grab hover:shadow-lg transition-shadow touch-none"
         style={{ backgroundColor: swipeStyle.backgroundColor }}
-        onClick={(e) => {
+        onClick={() => {
           // Предотвращаем клик при свайпе
-          if (!isDragging && Math.abs(dragDirection) < 10) {
+          if (!isDragging && !programmaticSwipe && Math.abs(dragDirection) < 10) {
             onCardClick?.();
           }
         }}
       >
         <CardContent className="flex-grow overflow-auto p-6">
-          {/* Логотип и круг с процентом по центру с анимацией */}
+          {/* Логотип и круг с процентом по центру с анимацией, синхронизированной со счетчиком */}
           <motion.div 
             className="flex items-center justify-center mb-3 relative"
-            initial={{ gap: `${maxGap}px` }}
-            animate={{ gap: `${actualGap}px` }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            style={{ gap: `${actualGap}px` }}
           >
             <LogoWithFallback 
               logoUrl={vacancy.logo_url} 
@@ -168,9 +214,7 @@ export default function SwipeCard({
             />
             <motion.div 
               className="relative z-20"
-              initial={{ x: 0 }}
-              animate={{ x: overlap > 0 ? `-${overlap}px` : 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              style={{ x: currentOverlap > 0 ? `-${currentOverlap}px` : 0 }}
             >
               <RelevanceBadge score={relevance} />
             </motion.div>

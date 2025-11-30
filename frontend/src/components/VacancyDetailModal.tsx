@@ -68,7 +68,7 @@ export default function VacancyDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl h-screen flex flex-col top-0 translate-y-0 rounded-none sm:rounded-lg">
         <DialogHeader className="text-left">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">

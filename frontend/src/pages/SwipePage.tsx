@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '../store/userStore';
 import { vacanciesApi } from '../services/api';
@@ -16,7 +16,10 @@ export default function SwipePage() {
   const [currentPage, setCurrentPage] = useState(0);
   const [selectedVacancyId, setSelectedVacancyId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [animateLeft, setAnimateLeft] = useState(false);
+  const [animateRight, setAnimateRight] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const token = useUserStore((state) => state.token);
   const setToken = useUserStore((state) => state.setToken);
@@ -29,6 +32,19 @@ export default function SwipePage() {
       setToken(storedToken);
     }
   }, [token, setToken]);
+
+  // Восстанавливаем индекс карточки при возврате со страницы отклика
+  useEffect(() => {
+    const state = location.state as { cardIndex?: number } | null;
+    if (state?.cardIndex !== undefined && allVacancies && allVacancies.length > 0) {
+      const savedIndex = state.cardIndex;
+      if (savedIndex >= 0 && savedIndex < allVacancies.length) {
+        setCurrentIndex(savedIndex);
+        // Очищаем state, чтобы при следующей загрузке не восстанавливать индекс
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, allVacancies]);
 
   console.log('SwipePage render - isAuthenticated:', isAuthenticated, 'token:', token ? 'present' : 'missing');
 
@@ -90,11 +106,13 @@ export default function SwipePage() {
     hasCurrentVacancy: !!currentVacancy,
     isLoading,
     hasData: !!data,
-    dataLength: data?.length || 0,
+    dataLength: Array.isArray(data) ? data.length : 0,
     currentPage,
   });
 
   const handleSwipeLeft = () => {
+    // Сбрасываем анимацию
+    setAnimateLeft(false);
     if (currentIndex < allVacancies.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
@@ -106,9 +124,21 @@ export default function SwipePage() {
   };
 
   const handleSwipeRight = () => {
+    // Сбрасываем анимацию
+    setAnimateRight(false);
     if (currentVacancy) {
-      navigate(`/swipe/${currentVacancy.vacancy.id}/letter`);
+      navigate(`/swipe/${currentVacancy.vacancy.id}/letter`, {
+        state: { cardIndex: currentIndex }
+      });
     }
+  };
+
+  const handleButtonSwipeLeft = () => {
+    setAnimateLeft(true);
+  };
+
+  const handleButtonSwipeRight = () => {
+    setAnimateRight(true);
   };
 
   const handleCardClick = () => {
@@ -196,13 +226,15 @@ export default function SwipePage() {
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
             onCardClick={handleCardClick}
+            animateLeft={animateLeft}
+            animateRight={animateRight}
           />
 
           <div className="flex gap-4 mt-4">
             <Button
               variant="outline"
               size="lg"
-              onClick={handleSwipeLeft}
+              onClick={handleButtonSwipeLeft}
               className="gap-2"
             >
               <X className="h-5 w-5" />
@@ -210,7 +242,7 @@ export default function SwipePage() {
             </Button>
             <Button
               size="lg"
-              onClick={handleSwipeRight}
+              onClick={handleButtonSwipeRight}
               className="gap-2"
             >
               <Heart className="h-5 w-5" />

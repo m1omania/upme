@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { aiApi, applicationsApi, vacanciesApi } from '../services/api';
 import { Container } from '@/components/ui/container';
@@ -11,6 +11,7 @@ import { ArrowLeft, Send, Loader2, Sparkles } from 'lucide-react';
 export default function CoverLetterPage() {
   const { vacancyId } = useParams<{ vacancyId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [letter, setLetter] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -171,7 +172,16 @@ export default function CoverLetterPage() {
       <div className="py-8 pb-24 md:pb-8 flex flex-col flex-1 min-h-0">
         <Button
           variant="outline"
-          onClick={() => navigate('/swipe')}
+          onClick={() => {
+            // Возвращаемся на страницу свайпа с сохраненным индексом карточки
+            const state = location.state as { cardIndex?: number } | null;
+            const cardIndex = state?.cardIndex;
+            if (cardIndex !== undefined) {
+              navigate('/swipe', { state: { cardIndex } });
+            } else {
+              navigate('/swipe');
+            }
+          }}
           className="mb-4 flex-shrink-0 self-start"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
