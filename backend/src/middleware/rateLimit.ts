@@ -6,6 +6,7 @@ export const apiLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Отключаем валидацию trust proxy
 });
 
 export const authLimiter = rateLimit({
@@ -14,6 +15,7 @@ export const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Отключаем валидацию trust proxy
   skip: (req) => {
     // В режиме разработки полностью отключаем rate limiting
     if (process.env.NODE_ENV === 'development') {
@@ -30,6 +32,7 @@ export const aiLimiter = rateLimit({
   message: 'Too many AI requests, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Отключаем валидацию trust proxy
   skip: (req) => {
     // В режиме разработки полностью отключаем rate limiting
     if (process.env.NODE_ENV === 'development') {
