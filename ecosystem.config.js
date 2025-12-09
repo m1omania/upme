@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'upme-backend',
-    script: './backend/dist/index.js',
+    script: './backend/dist/backend/src/index.js',
     cwd: process.cwd(),
     instances: 1,
     exec_mode: 'fork',
