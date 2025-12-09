@@ -5,6 +5,7 @@ export interface User {
   email: string;
   access_token: string;
   refresh_token: string;
+  balance: number;
   created_at: string;
   updated_at: string;
 }

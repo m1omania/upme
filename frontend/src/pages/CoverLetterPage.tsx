@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { aiApi, applicationsApi, vacanciesApi } from '../services/api';
 import { Container } from '@/components/ui/container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Send, Loader2, Sparkles } from 'lucide-react';
+import BalanceLimitDialog from '../components/BalanceLimitDialog';
 
 export default function CoverLetterPage() {
   const { vacancyId } = useParams<{ vacancyId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [letter, setLetter] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showBalanceDialog, setShowBalanceDialog] = useState(false);
 
   const { data: vacancy, error: vacancyError } = useQuery({
     queryKey: ['vacancy', vacancyId],
@@ -50,6 +53,8 @@ export default function CoverLetterPage() {
       const response = await aiApi.generateLetter(parseInt(vacancyId));
       if (response.success && response.data) {
         setLetter(response.data.letter);
+        // Обновляем баланс после успешной генерации
+        queryClient.invalidateQueries({ queryKey: ['user-balance'] });
       } else {
         console.error('Failed to generate letter:', response.error);
         const errorMsg = response.error || 'Не удалось сгенерировать письмо';
@@ -59,7 +64,12 @@ export default function CoverLetterPage() {
       console.error('Error generating letter:', error);
       let errorMessage = 'Ошибка при генерации письма';
       if (error.response) {
-        if (error.response.status === 404) {
+        if (error.response.status === 402) {
+          // Ошибка баланса - показываем модальное окно
+          setShowBalanceDialog(true);
+          setIsGenerating(false);
+          return;
+        } else if (error.response.status === 404) {
           errorMessage = 'Роут генерации письма не найден. Проверьте, что бэкенд запущен.';
         } else if (error.response.data?.error) {
           errorMessage = error.response.data.error;
@@ -315,6 +325,22 @@ export default function CoverLetterPage() {
           </Button>
         </div>
       </div>
+
+      {/* Модальное окно о лимите баланса */}
+      <BalanceLimitDialog
+        open={showBalanceDialog}
+        onOpenChange={setShowBalanceDialog}
+        onTopUp={() => {
+          setShowBalanceDialog(false);
+          // TODO: Переход на страницу пополнения баланса
+          navigate('/pricing');
+        }}
+        onContinue={() => {
+          setShowBalanceDialog(false);
+          // Пользователь может продолжить без генерации письма
+          // Письмо остается пустым или пользователь может ввести его вручную
+        }}
+      />
     </Container>
   );
 }

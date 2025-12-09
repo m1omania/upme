@@ -101,12 +101,34 @@ router.get('/callback', ...authMiddleware, async (req: Request, res: Response) =
         }
       }
       
-      if (publishedResumes.length > 0) {
-        const resumeData = publishedResumes[0];
-        
+      // Удаляем все старые резюме пользователя (включая моковые)
+      const existingResumes = ResumeModel.findByUserId(user.id);
+      for (const existingResume of existingResumes) {
+        ResumeModel.delete(existingResume.id);
+        logger.info(`Deleted old resume ${existingResume.id} (${existingResume.hh_resume_id})`);
+      }
+
+      // Сохраняем все опубликованные резюме из HH.ru
+      for (const resumeData of publishedResumes) {
         // Обрабатываем skills - может быть массивом объектов или массивом строк
         let skillsArray: string[] = [];
-        if (Array.isArray(resumeData.skills)) {
+        
+        // Проверяем skill_set в первую очередь
+        if (Array.isArray(resumeData.skill_set)) {
+          skillsArray = resumeData.skill_set.map((s: any) => {
+            if (typeof s === 'string') {
+              return s;
+            }
+            return s.name || s;
+          });
+        } else if (Array.isArray(resumeData.key_skills)) {
+          skillsArray = resumeData.key_skills.map((s: any) => {
+            if (typeof s === 'string') {
+              return s;
+            }
+            return s.name || s;
+          });
+        } else if (Array.isArray(resumeData.skills)) {
           skillsArray = resumeData.skills.map((s: any) => {
             if (typeof s === 'string') {
               return s;
@@ -124,6 +146,14 @@ router.get('/callback', ...authMiddleware, async (req: Request, res: Response) =
           ).join(', ') || '',
           skills: skillsArray,
         });
+        
+        logger.info(`Saved resume ${resumeData.id} (${resumeData.title}) to DB`);
+      }
+      
+      if (publishedResumes.length === 0) {
+        logger.warn(`No published resumes found for user ${user.id} after OAuth`);
+      } else {
+        logger.info(`Saved ${publishedResumes.length} published resumes for user ${user.id}`);
       }
     } catch (error) {
       logger.warn('Failed to fetch resumes:', error);

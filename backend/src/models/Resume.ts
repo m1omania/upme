@@ -73,5 +73,10 @@ export class ResumeModel {
 
     return this.create(data);
   }
+
+  static delete(id: number): void {
+    const stmt = db.prepare('DELETE FROM resumes WHERE id = ?');
+    stmt.run(id);
+  }
 }
 

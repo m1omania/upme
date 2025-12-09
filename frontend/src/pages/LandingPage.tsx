@@ -2,13 +2,10 @@ import { authApi } from '../services/api';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
 import { useNavigate } from 'react-router-dom';
-import { useUserStore } from '@/store/userStore';
 import { 
   Sparkles, 
   Zap, 
   Target, 
-  TrendingUp, 
-  FileText, 
   Filter,
   Award,
   BarChart3,
@@ -17,54 +14,20 @@ import {
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const setToken = useUserStore((state) => state.setToken);
-  
-  // Проверяем мок-режим
-  const isDev = import.meta.env.DEV;
-  const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
-  const isMockMode = isDev && useMockData;
-  
-  // Логирование для отладки
-  console.log('LandingPage - Environment check:', {
-    isDev,
-    VITE_USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA,
-    useMockData,
-    isMockMode,
-  });
 
   const handleStart = async () => {
-    console.log('handleStart - isMockMode:', isMockMode, 'isDev:', isDev, 'useMockData:', useMockData);
-    
-    if (isMockMode) {
-      // Мок-режим: делаем dev-login и переходим на /swipe
-      console.log('Mock mode: attempting dev-login');
-      try {
-        const response = await authApi.devLogin();
-        console.log('Dev login response:', response);
-        if (response.success && response.data?.token) {
-          setToken(response.data.token);
-          console.log('Token set, navigating to /swipe');
-          navigate('/swipe');
-          return;
-        } else {
-          console.error('Dev login failed: no token in response', response);
-        }
-      } catch (error: any) {
-        console.error('Error in dev login:', error);
-        console.error('Error details:', error.response?.data || error.message);
-        alert('Ошибка входа в тестовом режиме. Проверьте, что backend запущен и ALLOW_DEV_AUTH_BYPASS=true в backend/.env.local');
-        return;
+    // Всегда используем HH.ru OAuth
+    try {
+      const response = await authApi.getAuthUrl();
+      if (response.success && response.data) {
+        window.location.href = response.data.authUrl;
+      } else {
+        console.error('Failed to get auth URL:', response);
+        alert('Не удалось получить URL авторизации. Проверьте, что backend запущен.');
       }
-    } else {
-      // Обычный режим: редирект на HH.ru
-      try {
-        const response = await authApi.getAuthUrl();
-        if (response.success && response.data) {
-          window.location.href = response.data.authUrl;
-        }
-      } catch (error) {
-        console.error('Error getting auth URL:', error);
-      }
+    } catch (error) {
+      console.error('Error getting auth URL:', error);
+      alert('Ошибка при получении URL авторизации. Проверьте, что backend запущен.');
     }
   };
 
@@ -149,7 +112,7 @@ export default function LandingPage() {
                   className="text-lg px-8 py-6"
                 >
                   <User className="mr-2 h-5 w-5" />
-                  {isMockMode ? 'Войти (тестовый режим)' : 'Войти через HH.ru'}
+                  Войти через HH.ru
                 </Button>
               </div>
             </div>
@@ -193,7 +156,7 @@ export default function LandingPage() {
               className="text-lg px-8 py-6"
             >
               <User className="mr-2 h-5 w-5" />
-              {isMockMode ? 'Войти (тестовый режим)' : 'Войти через HH.ru'}
+              Войти через HH.ru
             </Button>
           </div>
         </Container>

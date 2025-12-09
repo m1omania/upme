@@ -9,8 +9,8 @@ export class UserModel {
     refresh_token: string;
   }): User {
     const stmt = db.prepare(`
-      INSERT INTO users (hh_user_id, email, access_token, refresh_token)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO users (hh_user_id, email, access_token, refresh_token, balance)
+      VALUES (?, ?, ?, ?, 10)
     `);
     
     const result = stmt.run(
@@ -49,6 +49,37 @@ export class UserModel {
       WHERE id = ?
     `);
     stmt.run(access_token, id);
+  }
+
+  static getBalance(id: number): number {
+    const user = this.findById(id);
+    return user?.balance ?? 10;
+  }
+
+  static deductBalance(id: number, amount: number): boolean {
+    const user = this.findById(id);
+    if (!user) return false;
+    
+    if (user.balance < amount) {
+      return false;
+    }
+    
+    const stmt = db.prepare(`
+      UPDATE users 
+      SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    stmt.run(amount, id);
+    return true;
+  }
+
+  static addBalance(id: number, amount: number): void {
+    const stmt = db.prepare(`
+      UPDATE users 
+      SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    stmt.run(amount, id);
   }
 }
 

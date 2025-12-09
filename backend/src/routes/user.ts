@@ -140,6 +140,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response<ApiR
         id: user.id,
         email: user.email,
         hh_user_id: user.hh_user_id,
+        balance: user.balance ?? 10,
         created_at: user.created_at,
         resumes: publishedResumes,
         filters,
@@ -370,6 +371,24 @@ router.get('/resume', authenticate, async (req: AuthRequest, res: Response<ApiRe
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to get resumes',
+    });
+  }
+});
+
+// Получить баланс пользователя
+router.get('/balance', authenticate, async (req: AuthRequest, res: Response<ApiResponse<{ balance: number }>>) => {
+  try {
+    const userId = req.userId!;
+    const balance = UserModel.getBalance(userId);
+    res.json({
+      success: true,
+      data: { balance },
+    });
+  } catch (error: any) {
+    logger.error('Error getting user balance:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to get user balance',
     });
   }
 });

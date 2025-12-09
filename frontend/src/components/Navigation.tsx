@@ -1,13 +1,30 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, BarChart3, User, Filter } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Home, BarChart3, User, Filter, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FiltersDialog from './FiltersDialog';
+import { userApi } from '../services/api';
 
 export default function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Получаем баланс пользователя
+  const { data: balanceData } = useQuery<number>({
+    queryKey: ['user-balance'],
+    queryFn: async () => {
+      const response = await userApi.getBalance();
+      if (response.success && response.data && typeof response.data === 'object' && 'balance' in response.data) {
+        return (response.data as { balance: number }).balance;
+      }
+      return 10; // Дефолтное значение
+    },
+    refetchInterval: 30000, // Обновляем каждые 30 секунд
+  });
+
+  const balance = balanceData ?? 10;
 
   const navItems = [
     { path: '/swipe', label: 'Свайп', icon: Home },
@@ -63,8 +80,15 @@ export default function Navigation() {
               })}
             </div>
             
-            {/* Filters Button */}
-            <div className="flex items-center">
+            {/* Balance and Filters */}
+            <div className="flex items-center gap-2">
+              {/* Balance */}
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary/10 text-primary font-semibold">
+                <Coins className="h-4 w-4" />
+                <span className="text-sm">{balance}</span>
+              </div>
+              
+              {/* Filters Button */}
               <Button
                 variant="outline"
                 size="sm"

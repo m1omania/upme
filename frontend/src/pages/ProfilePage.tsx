@@ -12,6 +12,7 @@ interface ProfileData {
   id: number;
   email: string;
   hh_user_id: string;
+  balance?: number;
   created_at: string;
   resumes: Resume[];
 }
@@ -211,6 +212,14 @@ export default function ProfilePage() {
               }
               return null;
             })()}
+
+            {/* Баланс */}
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary">
+                <span className="font-semibold">Баланс:</span>
+                <span className="text-xl font-bold">{profile.balance ?? 10}</span>
+              </div>
+            </div>
 
             {/* Контактная информация скрыта, но остается в данных для генерации писем */}
             {/* Email и phone доступны через hhInfo.userInfo для использования в AI сервисе */}

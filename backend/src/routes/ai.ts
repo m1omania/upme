@@ -35,6 +35,15 @@ router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest
 
     const user = UserModel.findById(userId)!;
 
+    // Проверяем баланс пользователя
+    const balance = UserModel.getBalance(userId);
+    if (balance < 1) {
+      return res.status(402).json({
+        success: false,
+        error: 'Вы достигли лимита. Пополните баланс, чтобы генерировать письма.',
+      });
+    }
+
     // Получаем резюме из БД - они уже отфильтрованы при загрузке (только опубликованные)
     const resumes = ResumeModel.findByUserId(userId);
     
@@ -51,35 +60,19 @@ router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest
     
     logger.info(`Selected resume "${resume.title}" for vacancy "${vacancy.title}" (from ${resumes.length} available resumes)`);
 
-    // Проверяем, находимся ли мы в мок-режиме
-    const isMockMode = process.env.NODE_ENV === 'development' && 
-                       (process.env.USE_MOCK_DATA === 'true' || user.access_token === 'dev-access-token');
+    // Получаем полные данные резюме из hh.ru для получения имени
+    const hhResume = await hhApiService.getResume(user.access_token, resume.hh_resume_id);
+    
+    // Формируем имя из резюме
+    const firstName = hhResume.first_name || '';
+    const lastName = hhResume.last_name || '';
+    const middleName = hhResume.middle_name || '';
+    const fullName = [lastName, firstName, middleName].filter(Boolean).join(' ') || 'Кандидат';
 
-    let fullName = 'Кандидат';
-    let userEmail = user.email || '';
-    let userPhone = '';
-
-    if (isMockMode) {
-      // Используем мок-данные для разработки
-      fullName = 'Иван Иванов';
-      userEmail = user.email || 'dev@test.local';
-      userPhone = '+7 (999) 123-45-67';
-      logger.info('Using mock data for resume and user info');
-    } else {
-      // Получаем полные данные резюме из hh.ru для получения имени
-      const hhResume = await hhApiService.getResume(user.access_token, resume.hh_resume_id);
-      
-      // Формируем имя из резюме
-      const firstName = hhResume.first_name || '';
-      const lastName = hhResume.last_name || '';
-      const middleName = hhResume.middle_name || '';
-      fullName = [lastName, firstName, middleName].filter(Boolean).join(' ') || 'Кандидат';
-
-      // Получаем контактные данные пользователя из HH.ru
-      const hhUserInfo = await hhApiService.getFullUserInfo(user.access_token);
-      userEmail = hhUserInfo.email || user.email || '';
-      userPhone = hhUserInfo.phone || '';
-    }
+    // Получаем контактные данные пользователя из HH.ru
+    const hhUserInfo = await hhApiService.getFullUserInfo(user.access_token);
+    const userEmail = hhUserInfo.email || user.email || '';
+    const userPhone = hhUserInfo.phone || '';
 
     // Формируем контактные данные
     const contactInfo: string[] = [];
@@ -110,6 +103,14 @@ router.post('/generate-letter', authenticate, aiLimiter, async (req: AuthRequest
     // Добавляем контактные данные в конец письма
     if (contactInfo.length > 0) {
       letter += '\n\n' + contactInfo.join('\n');
+    }
+
+    // Списываем баланс после успешной генерации
+    const deducted = UserModel.deductBalance(userId, 1);
+    if (!deducted) {
+      logger.warn(`Failed to deduct balance for user ${userId}, but letter was generated`);
+    } else {
+      logger.info(`Balance deducted for user ${userId}. New balance: ${UserModel.getBalance(userId)}`);
     }
 
     res.json({

@@ -30,5 +30,13 @@ export const aiLimiter = rateLimit({
   message: 'Too many AI requests, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // В режиме разработки полностью отключаем rate limiting
+    if (process.env.NODE_ENV === 'development') {
+      return true;
+    }
+    // Пропускаем localhost в любом режиме
+    return !!(req.ip === '::1' || req.ip === '127.0.0.1' || req.ip?.startsWith('::ffff:127.0.0.1'));
+  },
 });
 
