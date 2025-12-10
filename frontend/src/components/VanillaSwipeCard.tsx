@@ -145,8 +145,8 @@ export default function VanillaSwipeCard({
       const shouldSwipe = Math.abs(currentXPos) > threshold;
 
       if (shouldSwipe) {
-        // Анимация ухода карточки - ограничиваем чтобы не вызывать скролл
-        const exitX = currentXPos > 0 ? Math.min(1000, window.innerWidth * 1.5) : Math.max(-1000, -window.innerWidth * 1.5);
+        // Анимация ухода карточки - позволяем карточке полностью уйти за экран
+        const exitX = currentXPos > 0 ? window.innerWidth * 2 : -window.innerWidth * 2;
         card.style.transform = `translate(${exitX}px, ${currentYPos}px) rotate(${currentXPos > 0 ? 30 : -30}deg)`;
         
         setTimeout(() => {
