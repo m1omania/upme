@@ -293,7 +293,7 @@ export default function VanillaSwipeCard({
             </div>
           )}
 
-          <div className="flex-grow overflow-hidden flex flex-col min-h-0">
+          <div className="flex-grow overflow-visible flex flex-col min-h-0">
             <p className="text-xs md:text-sm text-muted-foreground mb-2 line-clamp-3 px-2">
               {vacancy.description}
             </p>
