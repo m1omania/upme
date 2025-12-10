@@ -111,7 +111,7 @@ export default function VanillaSwipeCard({
       }
 
       // Ограничиваем движение, но позволяем карточке выходить за края контейнера
-      const maxMove = Math.min(400, window.innerWidth * 0.9);
+      const maxMove = Math.min(500, window.innerWidth * 1.2);
       currentXPos = Math.max(-maxMove, Math.min(maxMove, currentXPos));
       currentYPos = Math.max(-maxMove, Math.min(maxMove, currentYPos));
 
