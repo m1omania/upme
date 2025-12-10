@@ -33,9 +33,16 @@ if (typeof window !== 'undefined') {
   console.log('🔧 API Configuration:', {
     API_URL,
     hostname: window.location.hostname,
+    protocol: window.location.protocol,
     fullURL: window.location.href,
     env_VITE_API_URL: import.meta.env.VITE_API_URL,
+    isUpmePro: window.location.hostname === 'upme.pro',
   });
+  
+  // Дополнительная проверка для production
+  if (window.location.hostname === 'upme.pro' && !API_URL.includes('https://upme.pro/api')) {
+    console.error('❌ API URL mismatch! Expected https://upme.pro/api but got:', API_URL);
+  }
 }
 
 class ApiClient {
