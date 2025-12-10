@@ -211,22 +211,22 @@ export default function VanillaSwipeCard({
     }
   };
 
-      return (
-        <div
-          ref={cardRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: isDraggable ? 'auto' : 'none',
-            cursor: isDraggable ? 'grab' : 'default',
-            touchAction: 'none',
-            overflow: 'hidden',
-          }}
-          onClick={handleClick}
-        >
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: isDraggable ? 'auto' : 'none',
+        cursor: isDraggable ? 'grab' : 'default',
+        touchAction: 'none',
+        overflow: 'visible',
+      }}
+      onClick={handleClick}
+    >
       {/* Индикатор НЕТ (влево) */}
       <div
         style={{
