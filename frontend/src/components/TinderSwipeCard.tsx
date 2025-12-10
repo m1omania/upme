@@ -77,16 +77,30 @@ export default function TinderSwipeCard({
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (!isDraggable) return;
     
-    const threshold = 100;
+    // Уменьшаем threshold для лучшей работы на мобильных устройствах
+    const threshold = 75;
+    const velocityThreshold = 500; // Скорость свайпа
     
-    if (Math.abs(info.offset.x) > threshold) {
+    // Свайп засчитывается если:
+    // 1. Карточка перетащена дальше threshold ИЛИ
+    // 2. Скорость свайпа больше velocityThreshold
+    const shouldSwipe = 
+      Math.abs(info.offset.x) > threshold || 
+      Math.abs(info.velocity.x) > velocityThreshold;
+    
+    if (shouldSwipe) {
+      // Определяем направление по offset или velocity
+      const direction = info.offset.x !== 0 
+        ? info.offset.x 
+        : info.velocity.x;
+      
       // Свайп произошел
-      setExitX(info.offset.x > 0 ? 400 : -400);
+      setExitX(direction > 0 ? 400 : -400);
       setExitY(info.offset.y);
       
       // Вызываем callback
       setTimeout(() => {
-        if (info.offset.x > 0) {
+        if (direction > 0) {
           onSwipeRight();
         } else {
           onSwipeLeft();
@@ -145,8 +159,9 @@ export default function TinderSwipeCard({
         transition: { duration: 0.2 },
       }}
       drag={isDraggable ? true : false}
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={1}
+      dragConstraints={{ left: -1000, right: 1000, top: -100, bottom: 100 }}
+      dragElastic={0.7}
+      dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
       onDragEnd={handleDragEnd}
       whileTap={isDraggable ? { cursor: 'grabbing' } : undefined}
       className={isDraggable ? "cursor-grab" : ""}
