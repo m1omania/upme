@@ -33,18 +33,30 @@ export default function SwipePage() {
     }
   }, [token, setToken]);
 
-  // Восстанавливаем индекс карточки при возврате со страницы отклика
+  // Восстанавливаем индекс карточки при возврате со страницы деталей или отклика
   useEffect(() => {
-    const state = location.state as { cardIndex?: number } | null;
+    const state = location.state as { cardIndex?: number; skipVacancyId?: number } | null;
     if (state?.cardIndex !== undefined && allVacancies && allVacancies.length > 0) {
       const savedIndex = state.cardIndex;
       if (savedIndex >= 0 && savedIndex < allVacancies.length) {
         setCurrentIndex(savedIndex);
+        // Если нужно пропустить вакансию (skipVacancyId), увеличиваем индекс
+        if (state?.skipVacancyId && currentVacancy && currentVacancy.vacancy.id === state.skipVacancyId) {
+          if (savedIndex < allVacancies.length - 1) {
+            setCurrentIndex(savedIndex + 1);
+          } else if (hasMorePages) {
+            // Загружаем следующую страницу
+            setCurrentPage(currentPage + 1);
+          } else {
+            // Больше нет страниц - увеличиваем индекс чтобы показать экран окончания
+            setCurrentIndex(savedIndex + 1);
+          }
+        }
         // Очищаем state, чтобы при следующей загрузке не восстанавливать индекс
         window.history.replaceState({}, document.title);
       }
     }
-  }, [location.state, allVacancies]);
+  }, [location.state, allVacancies, currentVacancy, hasMorePages, currentPage]);
 
   // Проверяем токен из localStorage тоже
   const localStorageToken = localStorage.getItem('token');
@@ -221,8 +233,8 @@ export default function SwipePage() {
 
   const handleCardClick = () => {
     if (currentVacancy) {
-      setSelectedVacancyId(currentVacancy.vacancy.id);
-      setIsModalOpen(true);
+      // Переходим на страницу деталей вакансии, сохраняя текущий индекс для возврата
+      navigate(`/swipe/${currentVacancy.vacancy.id}`, { state: { cardIndex: currentIndex } });
     }
   };
 
@@ -460,18 +472,6 @@ export default function SwipePage() {
           </div>
         </div>
       </Container>
-
-      <VacancyDetailModal
-        vacancyId={selectedVacancyId}
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        initialRelevance={currentVacancy ? {
-          relevance_score: currentVacancy.relevance_score,
-          reasons: currentVacancy.reasons,
-        } : undefined}
-        onSkip={handleSwipeLeft}
-        onApply={handleSwipeRight}
-      />
 
       <FiltersDialog open={filtersOpen} onOpenChange={setFiltersOpen} />
     </>
