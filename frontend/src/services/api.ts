@@ -7,16 +7,15 @@ function getApiUrl(): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
   
-  // Если указан явно в env - используем его (приоритет)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+  // Production домен (upme.pro) - ВСЕГДА используем HTTPS через Nginx proxy с /api
+  // ВАЖНО: проверяем ПЕРВЫМ, даже если есть VITE_API_URL
+  if (hostname === 'upme.pro' || hostname.endsWith('.upme.pro')) {
+    return `https://${hostname}/api`;
   }
   
-  // Production домен (upme.pro) - используем HTTPS через Nginx proxy
-  // ВАЖНО: проверяем ПЕРВЫМ, до проверки на network IP
-  if (hostname === 'upme.pro' || hostname.endsWith('.upme.pro')) {
-    // Используем HTTPS и путь /api через Nginx proxy
-    return `https://${hostname}/api`;
+  // Если указан явно в env - используем его (только для не-production доменов)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
   
   // Если localhost - используем localhost:3002

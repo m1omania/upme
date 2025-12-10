@@ -39,9 +39,10 @@ export default function SwipePage() {
     if (state?.cardIndex !== undefined && allVacancies && allVacancies.length > 0) {
       const savedIndex = state.cardIndex;
       if (savedIndex >= 0 && savedIndex < allVacancies.length) {
+        const currentVac = allVacancies[savedIndex];
         setCurrentIndex(savedIndex);
         // Если нужно пропустить вакансию (skipVacancyId), увеличиваем индекс
-        if (state?.skipVacancyId && currentVacancy && currentVacancy.vacancy.id === state.skipVacancyId) {
+        if (state?.skipVacancyId && currentVac && currentVac.vacancy.id === state.skipVacancyId) {
           if (savedIndex < allVacancies.length - 1) {
             setCurrentIndex(savedIndex + 1);
           } else if (hasMorePages) {
@@ -56,7 +57,7 @@ export default function SwipePage() {
         window.history.replaceState({}, document.title);
       }
     }
-  }, [location.state, allVacancies, currentVacancy, hasMorePages, currentPage]);
+  }, [location.state, allVacancies, hasMorePages, currentPage]);
 
   // Проверяем токен из localStorage тоже
   const localStorageToken = localStorage.getItem('token');
