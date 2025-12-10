@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '../store/userStore';
 import { vacanciesApi } from '../services/api';
 import VanillaSwipeCard from '../components/VanillaSwipeCard';
-import VacancyDetailModal from '../components/VacancyDetailModal';
 import EmptyState from '../components/EmptyState';
 import { Container } from '@/components/ui/container';
 import { Button } from '@/components/ui/button';
@@ -15,8 +14,6 @@ export default function SwipePage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allVacancies, setAllVacancies] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
-  const [selectedVacancyId, setSelectedVacancyId] = useState<number | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUndoing, setIsUndoing] = useState(false);
   const [hasMorePages, setHasMorePages] = useState(true);
   const [lastPageLength, setLastPageLength] = useState<number | null>(null);

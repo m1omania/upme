@@ -13,6 +13,7 @@ import PricingPage from './pages/PricingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AuthErrorPage from './pages/AuthErrorPage';
 import TokenCopyPage from './pages/TokenCopyPage';
+import VacancyDetailPage from './pages/VacancyDetailPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 
@@ -50,6 +51,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SwipePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/swipe/:vacancyId"
+            element={
+              <ProtectedRoute>
+                <VacancyDetailPage />
               </ProtectedRoute>
             }
           />
