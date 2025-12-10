@@ -14,38 +14,7 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Обход авторизации в development режиме (ОТКЛЮЧЕН для работы с реальным HH.ru API)
-    if (false && process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
-      // Создаем или находим тестового пользователя
-      let user = UserModel.findByHhUserId('dev-user-123');
-      if (!user) {
-        user = UserModel.create({
-          hh_user_id: 'dev-user-123',
-          email: 'dev@test.local',
-          access_token: 'dev-access-token',
-          refresh_token: 'dev-refresh-token',
-        });
-      }
-      
-      // Убеждаемся, что у пользователя есть резюме
-      const { ResumeModel } = await import('../models/Resume');
-      const existingResumes = ResumeModel.findByUserId(user.id);
-      if (existingResumes.length === 0) {
-        ResumeModel.upsert({
-          user_id: user.id,
-          hh_resume_id: 'dev-resume-123',
-          title: 'Тестовое резюме (Frontend Developer)',
-          experience: 'Опыт работы: Frontend Developer в компании X (2 года)',
-          skills: ['React', 'TypeScript', 'JavaScript', 'HTML', 'CSS'],
-        });
-        logger.info('Auth middleware - Created test resume for dev user');
-      }
-      
-      req.userId = user.id;
-      req.user = user;
-      logger.info('Auth middleware - Dev bypass enabled, using dev user:', { userId: user.id });
-      return next();
-    }
+    // DEV bypass отключен - используем реальную авторизацию HH.ru
 
     const authHeader = req.headers.authorization;
     logger.info('Auth middleware - Authorization header:', { 
