@@ -1,0 +1,50 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "cd /var/www/upme/frontend\r"
+
+expect "# "
+send "echo '=== Проверка dist ==='\r"
+
+expect "# "
+send "ls -lh dist/assets/\r"
+
+expect "# "
+send "cat dist/index.html\r"
+
+expect "# "
+send "echo '=== Пересборка ==='\r"
+
+expect "# "
+send "rm -rf dist\r"
+
+expect "# "
+send "npx vite build\r"
+
+expect "# "
+send "echo '=== Новая сборка ==='\r"
+
+expect "# "
+send "ls -lh dist/assets/\r"
+
+expect "# "
+send "cat dist/index.html\r"
+
+expect "# "
+send "echo '=== Проверка nginx root ==='\r"
+
+expect "# "
+send "grep -A 5 'location /' /etc/nginx/sites-enabled/upme\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

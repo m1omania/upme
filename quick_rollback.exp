@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "cd /var/www/upme\r"
+
+expect "# "
+send "git reset --hard 132b946\r"
+
+expect "# "
+send "cd frontend\r"
+
+expect "# "
+send "rm -rf dist\r"
+
+expect "# "
+send "npx vite build\r"
+
+expect "# "
+send "systemctl reload nginx\r"
+
+expect "# "
+send "echo 'DONE'\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

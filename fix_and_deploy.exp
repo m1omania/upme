@@ -1,0 +1,41 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "cd /var/www/upme\r"
+
+expect "# "
+send "git stash\r"
+
+expect "# "
+send "git pull origin main\r"
+
+expect "# "
+send "npm install\r"
+
+expect "# "
+send "cd frontend && npm install\r"
+
+expect "# "
+send "npm list react-tinder-card\r"
+
+expect "# "
+send "npx vite build --force\r"
+
+expect "# "
+send "ls -lh dist/assets/ | tail -5\r"
+
+expect "# "
+send "echo '=== Frontend с Tinder swipe готов! ==='\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

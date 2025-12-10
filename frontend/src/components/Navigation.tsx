@@ -47,7 +47,7 @@ export default function Navigation() {
     <>
       {/* Top Bar - Only on Swipe Page */}
       {isSwipePage && (
-        <nav className="flex bg-background sticky top-0 z-50">
+        <nav className="flex bg-background sticky top-0 z-10">
           <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-4 w-full">
             {/* Logo */}
             <div className="flex items-center gap-2">
@@ -105,7 +105,7 @@ export default function Navigation() {
 
       {/* Desktop Navigation - Top Bar (for other pages) */}
       {!isSwipePage && !isCoverLetterPage && (
-        <nav className="hidden md:flex border-b bg-background sticky top-0 z-50">
+        <nav className="hidden md:flex border-b bg-background sticky top-0 z-10">
           <div className="container mx-auto flex h-16 items-center justify-between px-4 w-full">
             {/* Logo */}
             <div className="flex items-center gap-2">
@@ -143,7 +143,7 @@ export default function Navigation() {
 
       {/* Mobile Navigation - Bottom Bar (скрыт на странице отклика) */}
       {!isCoverLetterPage && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-50 shadow-lg">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-10 shadow-lg">
           <div className="flex items-center justify-around h-16 px-2 pb-safe">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -152,14 +152,13 @@ export default function Navigation() {
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`flex flex-col items-center justify-center gap-1 flex-1 h-full rounded-lg transition-colors ${
+                  className={`flex flex-col items-center justify-center flex-1 h-full rounded-lg transition-colors ${
                     active
-                      ? 'text-primary bg-primary/10'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-xs font-medium">{item.label}</span>
+                  <Icon className="h-6 w-6" />
                 </button>
               );
             })}

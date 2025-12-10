@@ -14,8 +14,8 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Обход авторизации в development режиме (если включен)
-    if (process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
+    // Обход авторизации в development режиме (ОТКЛЮЧЕН для работы с реальным HH.ru API)
+    if (false && process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
       // Создаем или находим тестового пользователя
       let user = UserModel.findByHhUserId('dev-user-123');
       if (!user) {

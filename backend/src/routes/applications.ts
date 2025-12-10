@@ -174,7 +174,78 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response<ApiResponse
 router.get('/stats', authenticate, async (req: AuthRequest, res: Response<ApiResponse<any>>) => {
   try {
     const userId = req.userId!;
-    const stats = ApplicationModel.getStatsByUserId(userId);
+    const user = UserModel.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found',
+      });
+    }
+
+    // Получаем отклики из HH.ru
+    let total = 0;
+    let messages = 0;
+    let rejected = 0;
+    let invitations = 0;
+
+    try {
+      const negotiations = await hhApiService.getNegotiations(user.access_token, { per_page: 100 });
+      
+      if (negotiations && negotiations.items) {
+        total = negotiations.items.length;
+        
+        negotiations.items.forEach((negotiation: any) => {
+          const stateId = negotiation.state?.id;
+          
+          // Подсчитываем статусы
+          if (stateId === 'invitation') {
+            invitations++;
+          } else if (stateId === 'discard' || stateId === 'discarded') {
+            rejected++;
+          }
+          
+          // Считаем сообщения
+          if (negotiation.has_updates) {
+            messages++;
+          }
+        });
+      }
+    } catch (error) {
+      logger.warn('Failed to get HH.ru negotiations for stats:', error);
+    }
+
+    // Получаем просмотры резюме из первого активного резюме
+    let totalViews = 0;
+    let newViews = 0;
+
+    try {
+      const resumes = await hhApiService.getResumes(user.access_token);
+      
+      if (resumes && resumes.length > 0) {
+        // Берем первое опубликованное резюме
+        const publishedResume = resumes.find((r: any) => 
+          r.status?.id === 'published' || r.status?.name === 'опубликовано'
+        ) || resumes[0];
+        
+        if (publishedResume) {
+          const fullResume = await hhApiService.getResume(user.access_token, publishedResume.id);
+          totalViews = fullResume.total_views || fullResume.views_count || 0;
+          newViews = fullResume.new_views || 0;
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to get resume views for stats:', error);
+    }
+
+    const stats = {
+      total,
+      totalViews,
+      newViews,
+      messages,
+      rejected,
+      invitations,
+    };
 
     res.json({
       success: true,

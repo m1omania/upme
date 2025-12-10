@@ -231,11 +231,23 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {!hhInfo && !hhInfoLoading && (
-              <div className="text-center py-4 text-sm text-muted-foreground">
-                Нажмите "Обновить из HH.ru" для загрузки полной информации
-              </div>
-            )}
+            <div className="flex justify-center mt-4">
+              <Button
+                onClick={loadHhInfo}
+                disabled={hhInfoLoading}
+                variant="outline"
+                size="sm"
+              >
+                {hhInfoLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Обновление...
+                  </>
+                ) : (
+                  'Обновить данные из HH.ru'
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -348,10 +360,17 @@ export default function ProfilePage() {
                               ? 'Не опубликовано' 
                               : (statusName !== 'Неизвестно' ? statusName : 'Неизвестный статус')}
                           </span>
-                          {hhData.views_count !== undefined && (
-                            <span className="text-xs text-muted-foreground">
-                              Просмотров: {hhData.views_count}
-                            </span>
+                          {(hhData.views_count !== undefined || hhData.total_views !== undefined) && (
+                            <div className="flex gap-3 text-xs">
+                              <span className="text-muted-foreground">
+                                Всего просмотров: {hhData.total_views || hhData.views_count || 0}
+                              </span>
+                              {hhData.new_views !== undefined && hhData.new_views > 0 && (
+                                <span className="text-green-600 font-semibold">
+                                  Новых: +{hhData.new_views}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -501,6 +520,72 @@ export default function ProfilePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Отклики и сообщения от компаний */}
+        {hhInfo?.negotiations && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Отклики на вакансии ({hhInfo.negotiations.items?.length || 0})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {hhInfo.negotiations.items && hhInfo.negotiations.items.length > 0 ? (
+                <div className="space-y-4">
+                  {hhInfo.negotiations.items.slice(0, 10).map((negotiation: any) => (
+                    <div key={negotiation.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold">{negotiation.vacancy?.name || 'Вакансия удалена'}</h4>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          negotiation.state?.name === 'Приглашение' 
+                            ? 'bg-green-100 text-green-800'
+                            : negotiation.state?.name === 'Просмотрено' 
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {negotiation.state?.name || 'Неизвестно'}
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {negotiation.vacancy?.employer?.name || 'Компания неизвестна'}
+                      </p>
+                      
+                      {negotiation.has_updates && (
+                        <div className="text-sm font-semibold text-green-600 mb-2">
+                          ✨ Есть новые сообщения!
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-muted-foreground">
+                        Создано: {new Date(negotiation.created_at).toLocaleDateString('ru-RU', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      
+                      {negotiation.messages_url && (
+                        <a 
+                          href={negotiation.messages_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline mt-2 inline-block"
+                        >
+                          Перейти к переписке на HH.ru →
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  У вас пока нет откликов на вакансии
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       </div>
     </Container>

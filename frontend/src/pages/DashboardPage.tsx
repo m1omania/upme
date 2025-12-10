@@ -91,11 +91,34 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle>Статистика откликов</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <p>Всего: {(applicationStats as any)?.total || 0}</p>
-              <p>Просмотрено: {(applicationStats as any)?.viewed || 0}</p>
-              <p>Отказов: {(applicationStats as any)?.rejected || 0}</p>
-              <p>Интервью: {(applicationStats as any)?.interviews || 0}</p>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Всего откликов:</span>
+                <span className="text-xl font-bold">{(applicationStats as any)?.total || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Просмотры резюме:</span>
+                <span className="text-xl font-bold text-blue-600">
+                  {(applicationStats as any)?.totalViews || 0}
+                  {(applicationStats as any)?.newViews > 0 && (
+                    <span className="text-sm text-green-600 ml-1">
+                      (+{(applicationStats as any)?.newViews})
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Сообщений:</span>
+                <span className="text-xl font-bold text-purple-600">{(applicationStats as any)?.messages || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Отказов:</span>
+                <span className="text-xl font-bold text-red-600">{(applicationStats as any)?.rejected || 0}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Приглашений:</span>
+                <span className="text-xl font-bold text-green-600">{(applicationStats as any)?.invitations || 0}</span>
+              </div>
             </CardContent>
           </Card>
 

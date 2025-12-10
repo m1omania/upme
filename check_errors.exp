@@ -1,0 +1,38 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "cd /var/www/upme/frontend\r"
+
+expect "# "
+send "echo '=== Проверка сборки ==='\r"
+
+expect "# "
+send "ls -lh dist/\r"
+
+expect "# "
+send "cat dist/index.html\r"
+
+expect "# "
+send "echo '=== Проверка компонента TinderSwipeCard ==='\r"
+
+expect "# "
+send "ls -la src/components/TinderSwipeCard.tsx\r"
+
+expect "# "
+send "echo '=== Быстрая пересборка ==='\r"
+
+expect "# "
+send "npx vite build 2>&1 | tail -30\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

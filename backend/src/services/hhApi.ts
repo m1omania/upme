@@ -89,6 +89,9 @@ export interface HHResume {
   created_at?: string;
   updated_at?: string;
   views_count?: number;
+  total_views?: number;
+  new_views?: number;
+  views_url?: string;
   [key: string]: any;
 }
 

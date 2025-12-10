@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "echo '=== Nginx конфигурация ==='\r"
+
+expect "# "
+send "cat /etc/nginx/conf.d/upme.pro.conf\r"
+
+expect "# "
+send "echo '=== Перезапуск Nginx ==='\r"
+
+expect "# "
+send "nginx -t\r"
+
+expect "# "
+send "systemctl reload nginx\r"
+
+expect "# "
+send "systemctl status nginx | head -10\r"
+
+expect "# "
+send "echo '=== Готово! Обновите https://upme.pro ==='\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+
