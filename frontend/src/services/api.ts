@@ -5,16 +5,23 @@ import type { ApiResponse } from '../../../shared/types';
 function getApiUrl(): string {
   // Определяем по hostname (приоритет над env для мобильных устройств)
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
   
-  // Если network IP (телефон) - ВСЕГДА используем тот же IP для backend
+  // Если указан явно в env - используем его (приоритет)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Production домен (upme.pro) - используем HTTPS через Nginx proxy
+  if (hostname === 'upme.pro' || hostname.endsWith('.upme.pro')) {
+    // Используем HTTPS и путь /api через Nginx proxy
+    return `https://${hostname}/api`;
+  }
+  
+  // Если network IP (телефон) - используем тот же IP для backend
   // Игнорируем VITE_API_URL если мы на network IP
   if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.includes('.')) {
     return `http://${hostname}:3002`;
-  }
-  
-  // Если указан явно в env - используем его (только для localhost)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
   }
   
   // По умолчанию localhost
