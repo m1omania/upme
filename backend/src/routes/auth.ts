@@ -42,8 +42,32 @@ const authMiddleware = process.env.NODE_ENV === 'development' ? [] : [authLimite
 
 router.get('/hh', ...authMiddleware, (req: Request, res: Response) => {
   const clientId = process.env.HH_CLIENT_ID;
-  const redirectUri = encodeURIComponent(process.env.HH_REDIRECT_URI!);
-  const authUrl = `https://hh.ru/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}`;
+  const redirectUri = process.env.HH_REDIRECT_URI;
+  
+  if (!clientId) {
+    logger.error('HH_CLIENT_ID is not set in environment variables');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'HH_CLIENT_ID is not configured' 
+    });
+  }
+  
+  if (!redirectUri) {
+    logger.error('HH_REDIRECT_URI is not set in environment variables');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'HH_REDIRECT_URI is not configured' 
+    });
+  }
+  
+  const encodedRedirectUri = encodeURIComponent(redirectUri);
+  const authUrl = `https://hh.ru/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodedRedirectUri}`;
+  
+  logger.info('Generated auth URL:', { 
+    clientId: clientId.substring(0, 10) + '...', 
+    redirectUri,
+    authUrl: authUrl.substring(0, 100) + '...' 
+  });
   
   res.json({ success: true, data: { authUrl } });
 });
