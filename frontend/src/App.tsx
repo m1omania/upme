@@ -38,7 +38,7 @@ function App() {
   return (
     <BrowserRouter>
       {isAuthenticated && <Navigation />}
-      <div className="pb-16 md:pb-0 overflow-visible" style={{ overflow: 'visible', overflowY: 'visible', overflowX: 'visible' }}>
+      <div className="pb-16 md:pb-0 overflow-x-hidden overflow-y-auto">
         <Routes>
           <Route
             path="/"
