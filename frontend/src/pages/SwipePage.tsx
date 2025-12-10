@@ -422,7 +422,7 @@ export default function SwipePage() {
                   onCardClick={isTopCard ? handleCardClick : undefined}
                   isDraggable={isTopCard}
                   style={{
-                    zIndex: 100 + (visibleCards.length - actualIndex), // z-index выше Navigation (50)
+                    zIndex: 50 + (visibleCards.length - actualIndex), // z-index выше Navigation (5)
                     scale: 1 - actualIndex * 0.04,                     // Верхняя = 1.0, остальные меньше
                     y: actualIndex * 16,                               // Верхняя = 0, остальные ниже
                   }}

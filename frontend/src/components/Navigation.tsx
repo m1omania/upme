@@ -152,7 +152,7 @@ export default function Navigation() {
     <>
       {/* Bottom Navigation Bar (скрыт на странице отклика) */}
       {!isCoverLetterPage && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-10 shadow-lg">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background z-[5] shadow-lg">
           <div className="flex items-center justify-around h-16 px-2 pb-safe">
             {/* Свайп */}
             {navItems.slice(0, 1).map((item) => {
