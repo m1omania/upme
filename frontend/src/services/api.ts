@@ -7,10 +7,11 @@ function getApiUrl(): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
   
-  // Production домен (upme.pro) - ВСЕГДА используем HTTPS через Nginx proxy с /api
+  // Production домен (upme.pro) - ВСЕГДА используем HTTPS через Nginx proxy
   // ВАЖНО: проверяем ПЕРВЫМ, даже если есть VITE_API_URL
+  // НЕ добавляем /api здесь, так как методы уже содержат /api/
   if (hostname === 'upme.pro' || hostname.endsWith('.upme.pro')) {
-    return `https://${hostname}/api`;
+    return `https://${hostname}`;
   }
   
   // Если указан явно в env - используем его (только для не-production доменов)
