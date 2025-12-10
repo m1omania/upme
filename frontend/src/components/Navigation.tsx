@@ -191,12 +191,15 @@ export default function Navigation() {
               );
             })}
             {/* Balance */}
-            <div className="flex flex-col items-center justify-center flex-1 h-full">
-              <div className="flex items-center gap-1 text-primary">
-                <Coins className="h-6 w-6" />
-                <span className="text-xs font-bold">{balance}</span>
-              </div>
-            </div>
+                <button
+                  onClick={() => navigate('/credits')}
+                  className="flex flex-col items-center justify-center flex-1 h-full rounded-lg transition-colors hover:bg-accent"
+                >
+                  <div className="flex items-center gap-1 text-primary">
+                    <Coins className="h-6 w-6" />
+                    <span className="text-xs font-bold">{balance}</span>
+                  </div>
+                </button>
             {/* Профиль (последний элемент) */}
             {navItems.slice(2).map((item) => {
               const active = isActive(item.path);

@@ -14,6 +14,7 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import AuthErrorPage from './pages/AuthErrorPage';
 import TokenCopyPage from './pages/TokenCopyPage';
 import VacancyDetailPage from './pages/VacancyDetailPage';
+import CreditsPage from './pages/CreditsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 
@@ -83,6 +84,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/credits"
+            element={
+              <ProtectedRoute>
+                <CreditsPage />
               </ProtectedRoute>
             }
           />

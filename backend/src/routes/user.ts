@@ -399,6 +399,47 @@ router.get('/balance', authenticate, async (req: AuthRequest, res: Response<ApiR
   }
 });
 
+// Купить кредиты
+router.post('/purchase-credits', authenticate, async (req: AuthRequest, res: Response<ApiResponse<{ balance: number }>>) => {
+  try {
+    const userId = req.userId!;
+    const { amount } = req.body;
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid amount. Amount must be a positive number.',
+      });
+    }
+
+    // Проверяем допустимые пакеты кредитов
+    const allowedPackages = [10, 25, 50, 100];
+    if (!allowedPackages.includes(amount)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid package. Allowed packages: ${allowedPackages.join(', ')} credits.`,
+      });
+    }
+
+    // Добавляем кредиты к балансу
+    UserModel.addBalance(userId, amount);
+    const newBalance = UserModel.getBalance(userId);
+
+    logger.info(`User ${userId} purchased ${amount} credits. New balance: ${newBalance}`);
+
+    res.json({
+      success: true,
+      data: { balance: newBalance },
+    });
+  } catch (error: any) {
+    logger.error('Error purchasing credits:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to purchase credits',
+    });
+  }
+});
+
 // Получить полную информацию о пользователе из HH.ru
 router.get('/hh-info', authenticate, async (req: AuthRequest, res: Response<ApiResponse<any>>) => {
   try {

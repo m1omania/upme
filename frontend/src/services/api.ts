@@ -211,5 +211,6 @@ export const userApi = {
   getResume: () => api.get('/api/user/resume'),
   getHhInfo: () => api.get('/api/user/hh-info'),
   getBalance: () => api.get('/api/user/balance'),
+  purchaseCredits: (amount: number) => api.post<{ balance: number }>('/api/user/purchase-credits', { amount }),
 };
 
