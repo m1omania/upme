@@ -264,14 +264,14 @@ export default function VanillaSwipeCard({
       </div>
 
       <Card 
-        className="w-full h-full flex flex-col overflow-hidden shadow-lg select-none"
+        className="w-full h-full flex flex-col overflow-visible shadow-lg select-none"
         style={{
           boxShadow: isDraggable 
             ? '0 8px 24px rgba(0,0,0,0.15)' 
             : '0 4px 12px rgba(0,0,0,0.1)',
         }}
       >
-        <CardContent className="flex-grow overflow-hidden flex flex-col p-3 md:p-4">
+        <CardContent className="flex-grow overflow-visible flex flex-col p-3 md:p-4">
           {/* Логотип и релевантность */}
           <div className="flex items-center justify-center gap-2 mb-2 flex-shrink-0">
             <LogoWithFallback 
