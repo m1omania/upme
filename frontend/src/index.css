@@ -53,7 +53,9 @@
   * {
     @apply border-border;
   }
-  body {
+  html, body {
     @apply bg-gray-100 text-foreground;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }

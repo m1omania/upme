@@ -110,8 +110,8 @@ export default function VanillaSwipeCard({
         hasMovedRef.current = true;
       }
 
-      // Ограничиваем движение
-      const maxMove = 300;
+      // Ограничиваем движение, чтобы карточка не выходила за пределы экрана
+      const maxMove = Math.min(300, window.innerWidth * 0.8);
       currentXPos = Math.max(-maxMove, Math.min(maxMove, currentXPos));
       currentYPos = Math.max(-maxMove, Math.min(maxMove, currentYPos));
 
@@ -211,21 +211,22 @@ export default function VanillaSwipeCard({
     }
   };
 
-  return (
-    <div
-      ref={cardRef}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: isDraggable ? 'auto' : 'none',
-        cursor: isDraggable ? 'grab' : 'default',
-        touchAction: 'none',
-      }}
-      onClick={handleClick}
-    >
+      return (
+        <div
+          ref={cardRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: isDraggable ? 'auto' : 'none',
+            cursor: isDraggable ? 'grab' : 'default',
+            touchAction: 'none',
+            overflow: 'hidden',
+          }}
+          onClick={handleClick}
+        >
       {/* Индикатор НЕТ (влево) */}
       <div
         style={{
