@@ -472,7 +472,7 @@ export default function SwipePage() {
             </Button>
           </div>
         </div>
-      </Container>
+      </div>
 
       <FiltersDialog open={filtersOpen} onOpenChange={setFiltersOpen} />
     </>
