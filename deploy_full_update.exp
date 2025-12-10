@@ -1,0 +1,53 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "cd /var/www/upme\r"
+
+expect "# "
+send "git fetch origin\r"
+
+expect "# "
+send "git reset --hard origin/main\r"
+
+expect "# "
+send "npm install\r"
+
+expect "# "
+send "cd backend && npm install\r"
+
+expect "# "
+send "npm run build\r"
+
+expect "# "
+send "cd ../frontend && npm install\r"
+
+expect "# "
+send "rm -rf dist && npx vite build\r"
+
+expect "# "
+send "cd ..\r"
+
+expect "# "
+send "pm2 restart upme-backend\r"
+
+expect "# "
+send "systemctl reload nginx\r"
+
+expect "# "
+send "echo '=== Деплой завершен! ==='\r"
+
+expect "# "
+send "pm2 status\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

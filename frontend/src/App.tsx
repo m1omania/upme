@@ -12,6 +12,7 @@ import BlogAdminPage from './pages/BlogAdminPage';
 import PricingPage from './pages/PricingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AuthErrorPage from './pages/AuthErrorPage';
+import TokenCopyPage from './pages/TokenCopyPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navigation from './components/Navigation';
 
@@ -43,6 +44,7 @@ function App() {
           />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/auth/error" element={<AuthErrorPage />} />
+          <Route path="/token-copy" element={<TokenCopyPage />} />
           <Route
             path="/swipe"
             element={

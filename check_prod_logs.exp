@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "pm2 logs upme-backend --lines 30 --nostream\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

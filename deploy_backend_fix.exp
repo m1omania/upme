@@ -1,0 +1,29 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+
+spawn ssh -p 49376 root@53893873b619.vps.myjino.ru
+
+expect "password:"
+send "jinopass777\r"
+
+expect "# "
+send "cd /var/www/upme && git pull origin main\r"
+
+expect "# "
+send "cd backend && npm run build\r"
+
+expect "# "
+send "pm2 restart upme-backend\r"
+
+expect "# "
+send "pm2 status\r"
+
+expect "# "
+send "echo '=== Backend исправлен и перезапущен! ==='\r"
+
+expect "# "
+send "exit\r"
+
+expect eof
+

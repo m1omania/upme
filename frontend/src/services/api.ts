@@ -1,7 +1,35 @@
 import axios, { AxiosInstance } from 'axios';
 import type { ApiResponse } from '../../../shared/types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+// Автоматически определяем API URL в зависимости от того, где запущен frontend
+function getApiUrl(): string {
+  // Определяем по hostname (приоритет над env для мобильных устройств)
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  
+  // Если network IP (телефон) - ВСЕГДА используем тот же IP для backend
+  // Игнорируем VITE_API_URL если мы на network IP
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.includes('.')) {
+    return `http://${hostname}:3002`;
+  }
+  
+  // Если указан явно в env - используем его (только для localhost)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // По умолчанию localhost
+  return 'http://localhost:3002';
+}
+
+const API_URL = getApiUrl();
+if (typeof window !== 'undefined') {
+  console.log('🔧 API Configuration:', {
+    API_URL,
+    hostname: window.location.hostname,
+    fullURL: window.location.href,
+    env_VITE_API_URL: import.meta.env.VITE_API_URL,
+  });
+}
 
 class ApiClient {
   private client: AxiosInstance;
@@ -33,8 +61,30 @@ class ApiClient {
 
     // Обработка ошибок
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        console.log('✅ API Response:', {
+          url: response.config.url,
+          status: response.status,
+          baseURL: response.config.baseURL,
+        });
+        return response;
+      },
       (error) => {
+        console.error('❌ API Error:', {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          message: error.message,
+          code: error.code,
+          isNetworkError: !error.response,
+        });
+        
+        if (!error.response) {
+          console.error('🌐 Network Error - Backend недоступен по адресу:', error.config?.baseURL);
+          console.error('💡 Проверь что backend запущен и доступен по этому адресу');
+        }
+        
         if (error.response?.status === 401) {
           const url = error.config?.url || '';
           const currentPath = window.location.pathname;

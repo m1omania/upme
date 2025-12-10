@@ -32,8 +32,41 @@ const PORT = process.env.PORT || 3002;
 app.set('trust proxy', true);
 
 // Middleware
+// Разрешаем запросы с localhost и network IP для локальной разработки
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'http://localhost:3000',
+  'http://192.168.31.204:3000',
+  /^http:\/\/192\.168\.\d+\.\d+:3000$/, // Любой локальный network IP
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Разрешаем запросы без origin (например, мобильные приложения)
+    if (!origin) return callback(null, true);
+    
+    // Проверяем точное совпадение
+    if (allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      }
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    })) {
+      return callback(null, true);
+    }
+    
+    // В development режиме разрешаем все локальные адреса
+    if (process.env.NODE_ENV === 'development') {
+      if (origin.includes('localhost') || origin.includes('192.168.') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(express.json());

@@ -178,7 +178,7 @@ export default function CoverLetterPage() {
   }
 
   return (
-    <Container maxWidth="md" className="h-screen flex flex-col">
+    <Container maxWidth="md" className="h-[100dvh] flex flex-col">
       <div className="py-8 pb-24 md:pb-8 flex flex-col flex-1 min-h-0">
         <Button
           variant="outline"
