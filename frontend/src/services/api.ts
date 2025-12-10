@@ -13,15 +13,25 @@ function getApiUrl(): string {
   }
   
   // Production домен (upme.pro) - используем HTTPS через Nginx proxy
+  // ВАЖНО: проверяем ПЕРВЫМ, до проверки на network IP
   if (hostname === 'upme.pro' || hostname.endsWith('.upme.pro')) {
     // Используем HTTPS и путь /api через Nginx proxy
     return `https://${hostname}/api`;
   }
   
-  // Если network IP (телефон) - используем тот же IP для backend
-  // Игнорируем VITE_API_URL если мы на network IP
-  if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname.includes('.')) {
-    return `http://${hostname}:3002`;
+  // Если localhost - используем localhost:3002
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3002';
+  }
+  
+  // Если network IP (телефон в локальной сети) - используем тот же IP для backend
+  // Это сработает только для IP адресов типа 192.168.x.x, 10.x.x.x и т.д.
+  if (hostname.includes('.')) {
+    // Проверяем что это не домен (домены содержат буквы)
+    const isIpAddress = /^\d+\.\d+\.\d+\.\d+$/.test(hostname);
+    if (isIpAddress) {
+      return `http://${hostname}:3002`;
+    }
   }
   
   // По умолчанию localhost
