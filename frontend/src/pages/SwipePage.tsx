@@ -401,9 +401,9 @@ export default function SwipePage() {
   return (
     <>
       <div className="w-full overflow-visible">
-        <div className="flex flex-col items-center pt-8 md:pt-6 pb-20 md:pb-4 overflow-visible px-0">
+        <div className="flex flex-col items-center pt-8 md:pt-6 pb-20 md:pb-4 overflow-visible px-4">
           {/* Контейнер стека карточек - без ограничений по ширине, чтобы карточки не обрезались */}
-          <div className="relative w-full max-w-md mx-auto h-[calc(100dvh-240px)] min-h-[450px] max-h-[650px] mb-8 md:mb-6 overflow-visible">
+          <div className="relative w-full max-w-md mx-auto h-[calc(100dvh-240px)] min-h-[450px] max-h-[650px] mb-8 md:mb-6 overflow-visible" style={{ padding: '0 2rem' }}>
             {/* Рендерим карточки от последней к первой для правильного DOM порядка */}
             {[...visibleCards].reverse().map((card, reverseIndex) => {
               // reverseIndex: 2, 1, 0 для 3 карточек
